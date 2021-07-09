@@ -1,0 +1,4 @@
+(module unload) bei konflikten
+module load devtoolset/9
+module load openmpi-gcc
+module load mkl

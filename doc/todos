@@ -1,0 +1,27 @@
+norm umstellen auf IBanachSpace von  ugcore/ugbase/lib_disc/function_spaces/metric_spaces.h
+
+
+L2 bzw. H1-Norm gibt es bereits Ableitungen. Mittels ‚CompositeSpace‘
+
+
+seq
+    *--limex-num-stages 1* für euler
+
+berechnung referenzlösung auskommentieren
+    -- Create callback.
+    function myStepCallback0(u, step, time)
+    — problem:post_processing(u, step, time)
+    vtk:print("PoroElasticityInitial.vtu", u, step, time)
+    end
+
+Callbacks
+
+
+TimeStep
+assemble defect
+
+reusable integrator:        BraidIntegrator
+reusable time stepper:      BraidTimeStepper
+
+create integrator:          BraidIntegratorFactory
+create time stepper:        BraidTimeStepperFactory

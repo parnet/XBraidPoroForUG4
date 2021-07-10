@@ -5,7 +5,7 @@
 #ifndef UG_PLUGIN_XBRAIDFORUG4_BRAIDVECTORSTRUCT_H
 #define UG_PLUGIN_XBRAIDFORUG4_BRAIDVECTORSTRUCT_H
 
-#include "../../libs/xbraid/braid/braid.hpp"
+#include "../../libs/braid/braid/braid.hpp"
 
 #define TRACE_INDEX 1
 #define TRACE_CONST 0

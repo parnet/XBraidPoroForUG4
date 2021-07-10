@@ -22,7 +22,7 @@
 #include "../../../Limex/time_disc/time_integrator.hpp"
 #include "../../../Limex/time_disc/linear_implicit_timestep.h"
 // library includes
-#include "../../libs/xbraid/braid/braid.hpp"
+#include "../../libs/braid/braid/braid.hpp"
 // local includes - core
 #include "../core/BraidVectorStruct.h"
 #include "../core/SpaceTimeCommunicator.h"

@@ -11,7 +11,7 @@
 #include <common/assert.h>
 #include "pcl/pcl_comm_world.h"
 
-#include "../../libs/xbraid/braid/braid.hpp"
+#include "../../libs/braid/braid/braid.hpp"
 
 /**
  * \brief class for splitting the global communicator into a spatial and a temporal communicator

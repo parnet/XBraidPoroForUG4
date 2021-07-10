@@ -123,7 +123,8 @@ namespace ug {
                         typedef Scriptor<TDomain, TAlgebra> TScriptor;
                         string name = string("Scriptor").append(suffix);
                         reg.add_class_<TScriptor>(name, grp)
-                                .set_construct_as_smart_pointer(true);;
+                                .add_method("lua_write",&TScriptor::lua_write,"","","")
+                                .set_construct_as_smart_pointer(true);
                         reg.add_class_to_group(name, "Scriptor", tag);
                     }
                     // VTKScriptor
@@ -308,8 +309,9 @@ namespace ug {
                                 .add_constructor()
                                 .add_method("set_domain", &TThetaIntegrator::set_domain, "None", "verbose",
                                             "set the level of verbose (true / false)")
-                                .add_method("set_solver", &TThetaIntegrator::set_solver, "None", "verbose",
-                                            "set the level of verbose (true / false)")
+                                .add_method("set_solver", &TThetaIntegrator::set_solver, "None", "verbose","set the level of verbose (true / false)")
+                                .add_method("create_time_integrator", &TThetaIntegrator::create_time_integrator, "None", "Gridfunction u0","set the vector for t=t0")
+                                .add_method("create_level_time_integrator", &TThetaIntegrator::create_level_time_integrator, "None", "Gridfunction u0","set the vector for t=t0")
                                 .set_construct_as_smart_pointer(true);
                         reg.add_class_to_group(name_gf, "ThetaIntegratorFactory", tag);
                     }
@@ -324,6 +326,8 @@ namespace ug {
                                             "set the level of verbose (true / false)")
                                 .add_method("set_solver", &TThetaIntegrator::set_solver, "None", "verbose",
                                             "set the level of verbose (true / false)")
+                                .add_method("create_time_integrator", &TThetaIntegrator::create_time_integrator, "None", "Gridfunction u0","set the vector for t=t0")
+                                .add_method("create_level_time_integrator", &TThetaIntegrator::create_level_time_integrator, "None", "Gridfunction u0","set the vector for t=t0")
                                 .set_construct_as_smart_pointer(true);
                         reg.add_class_to_group(name_gf, "CachedThetaIntegratorFactory", tag);
                     }

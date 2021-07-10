@@ -7,11 +7,11 @@ set(UG4_XBraid_plugin_VERSION_MAJOR 0.1)
 set(UG4_XBraid_plugin_VERSION_MINOR 0.0)
 
 # ----------  ----------  ---------- ---------- Compiling libraries ---------- ----------  ----------  ----------
-if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libs/xbraid/braid/libbraid.a")
+if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libs/braid/braid/libbraid.a")
 	MESSAGE("Compiling XBRAID")
     add_custom_command(OUTPUT braidlib
             COMMAND make braid
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/xbraid
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/braid
             )
 else ()
 	MESSAGE("XBRAID Exists")
@@ -68,8 +68,8 @@ if (buildEmbeddedPlugins)
     EXPORTSOURCES(${CMAKE_CURRENT_SOURCE_DIR} ${SOURCES})
 else (buildEmbeddedPlugins)
     add_library(${pluginName} SHARED ${SOURCES})
-    #add_library(${pluginName} SHARED ${CMAKE_CURRENT_SOURCE_DIR}/libs/xbraid/braid/libbraid.a)
-    target_link_libraries(${pluginName} ${CMAKE_CURRENT_SOURCE_DIR}/libs/xbraid/braid/libbraid.a)
+    #add_library(${pluginName} SHARED ${CMAKE_CURRENT_SOURCE_DIR}/libs/braid/braid/libbraid.a)
+    target_link_libraries(${pluginName} ${CMAKE_CURRENT_SOURCE_DIR}/libs/braid/braid/libbraid.a)
     target_link_libraries(${pluginName} ug4)
     #add_dependencies(${pluginName} UG_PLUGIN_ConvectionDiffusion)
     LINK_DIRECTORIES(${CMAKE_RUNTIME_OUTPUT_DIRECTORY})

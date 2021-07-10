@@ -24,6 +24,9 @@ public:
 
     virtual bool write(SPGridFunction u, int index, double time, int iteration, int level) = 0 ;
 
+    bool lua_write(SPGridFunction u, int index, double time, int iteration, int level){
+        return this->write(u,index,time,iteration,level);
+    }
     //virtual void print(const char *filename, TGridFunction &u, int index, double time) = 0;
 };
 

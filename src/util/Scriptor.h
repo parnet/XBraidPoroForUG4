@@ -54,6 +54,10 @@ public:
         this->writeTimePVD(&u);
     };
 
+    void set_filename(const char *filename) {
+        this->m_filename = filename;
+    }
+
 };
 
 template<typename TDomain, typename TAlgebra>

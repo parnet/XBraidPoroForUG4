@@ -79,6 +79,7 @@ public: // todo set better modes
     typedef Paralog TParalog;
     typedef SmartPtr<TParalog> SPParalog;
 
+
 private:
     /* -------------------------------------------------------------------------------------
      * Member variables
@@ -107,6 +108,8 @@ private:
 
 
 public:
+
+
     SPIntegratorFactory m_fine_time_integrator_factory;
     SPIntegratorFactory m_coarse_time_integrator_factory;
     /**
@@ -177,6 +180,24 @@ public:
         SPGridFunction sp_u_tstop_approx = constsp_u_approx_tstop->get()->clone();
         SPGridFunction lp = constsp_u_approx_tstop->get()->clone();
         SPGridFunction sp_rhs = this->m_u0->clone_without_values(); // for rhs
+
+
+        int tindex;
+        pstatus.GetTIndex(&tindex);
+        int iteration;
+        pstatus.GetIter(&iteration);
+        {
+            SPGridFunction tempobject_b = sp_u_approx_tstart->get()->clone(); // clone to ensure consistency
+            this->vtkScriptor->set_filename("sp_u_approx_tstart_before");
+            this->vtkScriptor->write(tempobject_b,tindex,t_start,iteration,level);
+        }
+
+        {
+            SPGridFunction tempobject_b = sp_u_tstop_approx->clone(); // clone to ensure consistency
+            this->vtkScriptor->set_filename("sp_u_tstop_approx_before");
+            this->vtkScriptor->write(tempobject_b,tindex,t_stop,iteration,level);
+        }
+
         //const ug::GridLevel gridlevel = sp_u_approx_tstart->get()->grid_level();
         // todo adapt conv check?
         if (fstop_ != nullptr) {
@@ -213,16 +234,7 @@ public:
         loc_time_integrator->prepare(*sp_u_approx_tstart->get()->clone());
 
 
-        {
-            //SPGridFunction tempobject_b = sp_u_approx_tstart->get()->clone(); // clone to ensure consistency
-            //double norm_ptr = this->m_norm->norm(tempobject_b);
-            //this->m_log->o <<"Frangasera Start: " << norm_ptr <<std::endl<<std::flush;
-        }
-        {
-            //SPGridFunction tempobject_b = sp_u_tstop_approx->clone(); // clone to ensure consistency
-            //double norm_ptr = this->m_norm->norm(tempobject_b);
-            //this->m_log->o <<"Frangasera Stop: " << norm_ptr <<std::endl<<std::flush;
-        }
+
 
 
         bool success = loc_time_integrator->apply(sp_u_tstop_approx, t_stop, sp_u_approx_tstart->cast_const(), t_start);
@@ -241,20 +253,17 @@ public:
 
 
         {
-            //SPGridFunction tempobject_b = sp_u_tstop_approx->clone(); // clone to ensure consistency
-            //double norm_ptr = this->m_norm->norm(tempobject_b);
-            //this->m_log->o <<"Frangasera after Stop: " << norm_ptr <<std::endl<<std::flush;
-        }
-        {
-            //SPGridFunction tempobject_b = sp_u_approx_tstart->get()->clone(); // clone to ensure consistency
-            //double norm_ptr = this->m_norm->norm(tempobject_b);
-            //this->m_log->o <<"Frangasera after Start: " << norm_ptr <<std::endl<<std::flush;
+            SPGridFunction tempobject_b = sp_u_approx_tstart->get()->clone(); // clone to ensure consistency
+            this->vtkScriptor->set_filename("sp_u_approx_tstart_after");
+            this->vtkScriptor->write(tempobject_b,tindex,t_stop,iteration,level);
         }
 
-        //SPGridFunction tempobject_b = sp_u_approx_tstart->get()->clone(); // clone to ensure consistency
-        //VecAdd(1, *tempobject_a.get(), -1, *tempobject_b.get());
-        //double norm_ptr = this->m_norm->norm(tempobject_a);
-        //this->m_log->o << level<<  ": Integrator-NORM " << norm_ptr <<std::endl<<std::flush;
+        {
+            SPGridFunction tempobject_b = sp_u_tstop_approx->clone(); // clone to ensure consistency
+            this->vtkScriptor->set_filename("sp_u_tstop_approx_after");
+            this->vtkScriptor->write(tempobject_b,tindex,t_stop,iteration,level);
+        }
+        this->vtkScriptor->set_filename("access");
 
         StopLevelOperationTimer(LevelObserver::TL_STEP, level);
         //this->m_log->o << "debug::BraidIntegrator::Step[[end]]" << std::endl<<std::flush;

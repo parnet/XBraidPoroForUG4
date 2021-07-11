@@ -379,8 +379,8 @@ namespace ug {
                                                 "set the level of verbose (true / false)")
                                     .add_method("set_verbose", &TBraidGridFunctionBase::set_verbose, "None", "verbose",
                                                 "set the level of verbose (true / false)")
-                                    .add_method("set_start_time", &TBraidGridFunctionBase::set_start_time, "None",
-                                                "initial time", "set t0 as initial time")
+                                    .add_method("set_start_time", &TBraidGridFunctionBase::set_start_time, "None","initial time", "set t0 as initial time")
+                                    .add_method("set_vtk_scriptor", &TBraidGridFunctionBase::set_vtk_scriptor, "None","initial time", "set t0 as initial time")
                                     .add_method("set_end_time", &TBraidGridFunctionBase::set_end_time, "None",
                                                 "end time", "set tN as endtime")
                                     .add_method("set_number_of_timesteps",

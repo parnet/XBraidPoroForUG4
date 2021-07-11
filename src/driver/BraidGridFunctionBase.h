@@ -62,9 +62,15 @@ public: // todo set better modes
 
     typedef BraidSpatialNorm<TDomain,TAlgebra> TSpatialNorm;
     typedef SmartPtr<TSpatialNorm> SPSpatialNorm;
+    SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtkScriptor;
 /* ---------------------------------------------------------------------------------------------------------------------
  * Member Variables
  -------------------------------------------------------------------------------------------------------------------- */
+
+    void set_vtk_scriptor(SmartPtr<VTKScriptor<TDomain,TAlgebra>> sp_scriptor){
+        this->vtkScriptor = sp_scriptor;
+    }
+
     SPParalog m_log;
     const char * m_name = nullptr;
     SPSpaceTimeCommunicator m_comm;

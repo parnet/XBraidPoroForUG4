@@ -396,6 +396,8 @@ namespace ug {
                                     .add_method("set_scriptor", &TBraidGridFunctionBase::set_scriptor, "None",
                                                 "Gridfunction u0", "set the vector for t=t0")
                                     .add_method("set_max_levels", &TBraidGridFunctionBase::set_max_levels, "None",
+                                                "number", "set maximum number of level")
+                                    .add_method("set_domain", &TBraidGridFunctionBase::set_domain, "None",
                                                 "number", "set maximum number of level");
                             reg.add_class_to_group(name_gf, "BraidGridFunctionBase", tag);
                         }
@@ -719,6 +721,8 @@ namespace ug {
                     .set_construct_as_smart_pointer(true);
             //reg.add_class_to_group(name, "Paralog", tag);
         }
+
+
 
         reg->add_class_<BraidTimer>("BraidTimer", grp, "Class to measure time differences")
                 .add_method("start", &BraidTimer::start)

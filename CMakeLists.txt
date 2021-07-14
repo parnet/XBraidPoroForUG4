@@ -35,7 +35,6 @@ set(SOURCES
         src/core/BraidExecutor.h
         src/core/BraidVectorStruct.h
 
-        src/PBraidApp.h
         src/core/SpaceTimeCommunicator.h
         src/util/Scriptor.h
 

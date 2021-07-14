@@ -178,25 +178,25 @@ public:
         auto *constsp_u_approx_tstop = (SPGridFunction *) ustop_->value;
 
         SPGridFunction sp_u_tstop_approx = constsp_u_approx_tstop->get()->clone();
-        SPGridFunction lp = constsp_u_approx_tstop->get()->clone();
-        SPGridFunction sp_rhs = this->m_u0->clone_without_values(); // for rhs
+        //SPGridFunction lp = constsp_u_approx_tstop->get()->clone();
+        //SPGridFunction sp_rhs = this->m_u0->clone_without_values(); // for rhs
 
 
         int tindex;
         pstatus.GetTIndex(&tindex);
         int iteration;
         pstatus.GetIter(&iteration);
-        {
-            SPGridFunction tempobject_b = sp_u_approx_tstart->get()->clone(); // clone to ensure consistency
-            this->vtkScriptor->set_filename("sp_u_approx_tstart_before");
-            this->vtkScriptor->write(tempobject_b,tindex,t_start,iteration,level);
-        }
+        //{
+        //    SPGridFunction tempobject_b = sp_u_approx_tstart->get()->clone(); // clone to ensure consistency
+        //    this->vtkScriptor->set_filename("sp_u_tstart_before");
+        //    this->vtkScriptor->write(tempobject_b,tindex,t_start,iteration,level);
+        //}
 
-        {
-            SPGridFunction tempobject_b = sp_u_tstop_approx->clone(); // clone to ensure consistency
-            this->vtkScriptor->set_filename("sp_u_tstop_approx_before");
-            this->vtkScriptor->write(tempobject_b,tindex,t_stop,iteration,level);
-        }
+        //{
+        //    SPGridFunction tempobject_b = sp_u_tstop_approx->clone(); // clone to ensure consistency
+        //    this->vtkScriptor->set_filename("sp_u_tstop_before");
+        //    this->vtkScriptor->write(tempobject_b,tindex,t_stop,iteration,level);
+        //}
 
         //const ug::GridLevel gridlevel = sp_u_approx_tstart->get()->grid_level();
         // todo adapt conv check?
@@ -233,10 +233,6 @@ public:
         loc_time_integrator->init(*sp_u_approx_tstart->get()->clone());
         loc_time_integrator->prepare(*sp_u_approx_tstart->get()->clone());
 
-
-
-
-
         bool success = loc_time_integrator->apply(sp_u_tstop_approx, t_stop, sp_u_approx_tstart->cast_const(), t_start);
         //this->m_log->o << "integrator applied "<< std::endl << std::flush;
         StopLevelOperationTimer(LevelObserver::TL_SOLVE, level);
@@ -250,20 +246,20 @@ public:
         MATLAB(sp_u_tstop_approx.get(), u->index, t_stop);
 #endif
         *sp_u_approx_tstart = sp_u_tstop_approx; // u_tstart is the return value
+        u_->time = t_stop;
 
+        //{
+        //    SPGridFunction tempobject_b = sp_u_approx_tstart->get()->clone(); // clone to ensure consistency
+        //    this->vtkScriptor->set_filename("sp_u_tstart_after");
+        //    this->vtkScriptor->write(tempobject_b,tindex,t_stop,iteration,level);
+        //}
 
-        {
-            SPGridFunction tempobject_b = sp_u_approx_tstart->get()->clone(); // clone to ensure consistency
-            this->vtkScriptor->set_filename("sp_u_approx_tstart_after");
-            this->vtkScriptor->write(tempobject_b,tindex,t_stop,iteration,level);
-        }
-
-        {
-            SPGridFunction tempobject_b = sp_u_tstop_approx->clone(); // clone to ensure consistency
-            this->vtkScriptor->set_filename("sp_u_tstop_approx_after");
-            this->vtkScriptor->write(tempobject_b,tindex,t_stop,iteration,level);
-        }
-        this->vtkScriptor->set_filename("access");
+        //{
+        //    SPGridFunction tempobject_b = sp_u_tstop_approx->clone(); // clone to ensure consistency
+        //    this->vtkScriptor->set_filename("sp_u_tstop_after");
+        //    this->vtkScriptor->write(tempobject_b,tindex,t_stop,iteration,level);
+        //}
+        //this->vtkScriptor->set_filename("access");
 
         StopLevelOperationTimer(LevelObserver::TL_STEP, level);
         //this->m_log->o << "debug::BraidIntegrator::Step[[end]]" << std::endl<<std::flush;
@@ -276,6 +272,7 @@ public:
         //this->m_log->o << "debug::BraidIntegrator::Residual[[args]]" << std::endl<<std::flush;
         //print_status(this->m_log->o,pstatus);
         this->m_log->o << "residual" << std::flush << std::endl;
+        // todo u_->time = time ?
         //this->m_log->o << "ERROR: called residual method for non residual supported integrator";
         //this->m_log->o << "debug::BraidIntegrator::Residual[[end]]" << std::endl<<std::flush;
         return 0;

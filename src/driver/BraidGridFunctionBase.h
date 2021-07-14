@@ -44,6 +44,11 @@ public: // todo set better modes
 /* ---------------------------------------------------------------------------------------------------------------------
  * Type definitions
  -------------------------------------------------------------------------------------------------------------------- */
+    typedef ug::IDomainDiscretization <TAlgebra> TDomainDisc;
+    typedef SmartPtr <TDomainDisc> SPDomainDisc;
+    SPDomainDisc m_domain_disc;
+
+
     typedef SmartPtr<SpaceTimeCommunicator> SPSpaceTimeCommunicator;
     typedef ug::GridFunction<TDomain, TAlgebra> TGridFunction;
     typedef SmartPtr<TGridFunction> SPGridFunction;
@@ -125,7 +130,9 @@ public: // todo set better modes
         auto *u = (BraidVector *) malloc(sizeof(BraidVector));
         auto *vec = new SPGridFunction();
         m_initializer->init(*vec, t);
+
         u->value = vec;
+        u->time = t;
 
 #if TRACE_INDEX == 1
         u->index = indexpool;
@@ -165,6 +172,7 @@ public: // todo set better modes
         //this->m_log->o << "debug::BraidGridFunctionBase::Clone[clone]" << std::endl<<std::flush;
         *vref = uref->get()->clone();
         v->value = vref;
+        v->time = u_->time;
 
 #if TRACE_INDEX == 1
         v->index = indexpool;
@@ -237,6 +245,11 @@ public: // todo set better modes
         auto *xref = (SPGridFunction *) x_->value;
         auto *yref = (SPGridFunction *) y_->value;
         VecAdd(beta, *yref->get(), alpha, *xref->get());
+
+
+        auto gridlevel = (*yref)->grid_level();
+        this->m_domain_disc->adjust_solution(*yref->get(), y_->time ,gridlevel);
+
         StopOperationTimer(Observer::T_SUM);
 #if TRACE_INDEX == 1
         MATLAB(yref->get(), y->index, -1.0);
@@ -310,7 +323,8 @@ public: // todo set better modes
         //print_status(this->m_log->o,bstatus);
         *size_ptr = (sizeof(TVectorValueType) * (*this->m_u0).size() // actual vector size
                      + sizeof(size_t)) // index
-                    + 2 * sizeof(int); // todo find out what this is :)
+                    + 2 * sizeof(int) // todo find out what this is :)
+                    + sizeof(double);
         //this->m_log->o << "debug::BraidGridFunctionBase::BufSize[[end]]" << std::endl<<std::flush;
         return 0;
     };
@@ -322,23 +336,34 @@ public: // todo set better modes
         //print_status(this->m_log->o,bstatus);
         StartOperationTimer(Observer::T_SEND);
 
-        int bufferSize;
+
 #if TRACE_INDEX == 1
         if (this->m_verbose) {
             debugwriter << "send(u_" << u_->index << ")" << std::endl << std::flush;
         }
 #endif
 
+        int bufferSize = 0; // startposition of gridfunction (will be written first) in buffer
+        // delegate writing of gridfunction
         auto *u_ref = (SPGridFunction *) u_->value;
+        pack(buffer, u_ref->get(), &bufferSize); // bufferSize returns position of bufferpointer after writing the gridfunction
 
-
-        pack(buffer, u_ref->get(), &bufferSize);
-
-#if TRACE_INDEX == 1
+        // write rank of source processor
         char *chBuffer = (char *) buffer;
+        int temprank = this->m_comm->get_temporal_rank();
+        memcpy(chBuffer + bufferSize, &temprank, sizeof(int));
+        bufferSize += sizeof(int);
+
+        // write temporal rank of source processor
+#if TRACE_INDEX == 1
         memcpy(chBuffer + bufferSize, &u_->index, sizeof(int));
         bufferSize += sizeof(int);
 #endif
+
+        // write time for gridfunction
+        memcpy(chBuffer + bufferSize, &u_->time, sizeof(double));
+        bufferSize += sizeof(double );
+        this->m_log->o  << "time written: " << u_->time << std::endl;
         bstatus.SetSize(bufferSize);
 
         StopOperationTimer(Observer::T_SEND);
@@ -372,12 +397,38 @@ public: // todo set better modes
         }
 #endif
 
-        int bufferSize;
-        BufSize(&bufferSize, bstatus);
+        int pos = 0 ; // startposition of gridfunction (will be read first) in buffer
+        //BufSize(&bufferSize, bstatus);
         auto *u = (BraidVector *) malloc(sizeof(BraidVector));
         auto *sp_u = new SPGridFunction(new TGridFunction(*this->m_u0)); // todo
-        unpack(buffer, sp_u->get(), &bufferSize);
+
+        // delegate reading of gridfunction
+        unpack(buffer, sp_u->get(), &pos);// pos returns position of bufferpointer after writing the gridfunction
         u->value = sp_u;
+
+        // read rank of source processor
+        char *chBuffer = (char *) buffer;
+        int temprank;
+        memcpy(&temprank, chBuffer + pos, sizeof(int));
+        pos += sizeof(int);
+
+        // read temporal rank of source processor
+#if TRACE_INDEX == 1
+        int index;
+        memcpy(&index, chBuffer + pos, sizeof(int));
+        pos += sizeof(int);
+        if (this->m_verbose) {
+            debugwriter << "rec( v_" << temprank << "_" << index << ")" << std::endl;
+        }
+#endif
+
+        double t;
+        memcpy(&t, chBuffer + pos, sizeof(double));
+        pos += sizeof(int);
+
+        u->time = t;
+        this->m_log->o  << "time read: " << u->time << std::endl;
+
 #if TRACE_INDEX == 1
         u->index = indexpool;
         indexpool++;
@@ -478,47 +529,40 @@ public: // todo set better modes
         *bufferSize = 0;
         size_t szVector = u_ref->size();
 
+        //write number of gridpoints
         memcpy(buffer, &szVector, sizeof(size_t));
         *bufferSize += sizeof(size_t);
+
+        // write the value for each gridpoint
         for (size_t i = 0; i < szVector; i++) {
             memcpy(chBuffer + *bufferSize, &(*u_ref)[i], sizeof(TVectorValueType));
             *bufferSize += sizeof(TVectorValueType);
         }
 
-        int temprank = this->m_comm->get_temporal_rank();
 
-        memcpy(chBuffer + *bufferSize, &temprank, sizeof(int));
-        *bufferSize += sizeof(int);
         //this->m_log->o << "debug::BraidGridFunctionBase::pack[[end]]" << std::endl<<std::flush;
     }
 
 
 
-    inline void unpack(void *buffer, TGridFunction *u_ref, int *bufferSize) {
+    inline void unpack(void *buffer, TGridFunction *u_ref, int *pos) {
         //this->m_log->o << "debug::BraidGridFunctionBase::unpack[[args]]" << std::endl<<std::flush;
         char *chBuffer = (char *) buffer;
         size_t szVector = 0;
-        memcpy(&szVector, chBuffer, sizeof(size_t));
-        int pos = sizeof(size_t);
+
+        // read number of gridpoints todo consistency check?
+        memcpy(&szVector, chBuffer + *pos, sizeof(size_t));
+        *pos = sizeof(size_t);
+
+        // read the values for each gridpoint
         for (size_t i = 0; i < szVector; i++) {
             TVectorValueType val = 0;
-            memcpy(&val, chBuffer + pos, sizeof(TVectorValueType));
-            pos += sizeof(TVectorValueType);
+            memcpy(&val, chBuffer + *pos, sizeof(TVectorValueType));
+            *pos += sizeof(TVectorValueType);
             (*u_ref)[i] = val;
         }
 
-        int temprank;
-        memcpy(&temprank, chBuffer + pos, sizeof(int));
-        pos += sizeof(int);
 
-#if TRACE_INDEX == 1
-        int index;
-        memcpy(&index, chBuffer + pos, sizeof(int));
-        pos += sizeof(int);
-        if (this->m_verbose) {
-            debugwriter << "rec( v_" << temprank << "_" << index << ")" << std::endl;
-        }
-#endif
         //this->m_log->o << "debug::BraidGridFunctionBase::unpack[[end]]" << std::endl<<std::flush;
     }
 
@@ -584,6 +628,10 @@ public: // todo set better modes
 
     void set_initializer(SPBraidInitializer initializer){
         this->m_initializer = initializer;
+    }
+
+    void set_domain(SPDomainDisc domain){
+        this->m_domain_disc = domain;
     }
 };
 

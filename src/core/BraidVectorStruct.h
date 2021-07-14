@@ -50,7 +50,7 @@
  */
 typedef struct _braid_Vector_struct {
     void *value{};
-
+    double time = 0.0;
 
 #if TRACE_INDEX == 1
     size_t index = 0;

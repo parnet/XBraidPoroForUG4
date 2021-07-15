@@ -244,12 +244,12 @@ public: // todo set better modes
 #endif
         auto *xref = (SPGridFunction *) x_->value;
         auto *yref = (SPGridFunction *) y_->value;
+        //this->m_log->o << "vec add " << x_->time << "\t" << y_->time << std::endl;
         VecAdd(beta, *yref->get(), alpha, *xref->get());
 
 
-        auto gridlevel = (*yref)->grid_level();
-        this->m_domain_disc->adjust_solution(*yref->get(), y_->time ,gridlevel);
 
+        // this->m_log->o << "adjust - time = " << y_->time << std::endl;
         StopOperationTimer(Observer::T_SUM);
 #if TRACE_INDEX == 1
         MATLAB(yref->get(), y->index, -1.0);

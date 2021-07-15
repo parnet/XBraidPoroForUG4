@@ -67,7 +67,58 @@ public: // todo set better modes
     //typedef ug::ISubDiagErrorEst<TVector> TErrorEstimatorType;
     //typedef ug::AitkenNevilleTimex<TVector> TTimexType;
 
+/*
+    braid_Int Sum(braid_Real alpha,braid_Vector x_,braid_Real beta,braid_Vector y_) override {
+        //this->m_log->o << "debug::BraidGridFunctionBase::Sum[[args]]" << std::endl<<std::flush;
+        StartOperationTimer(Observer::T_SUM);
+#if TRACE_INDEX == 1
+        if (this->m_verbose) {
+            if (alpha == 0) {
+                this->debugwriter << "u_" << y_->index << " = " << beta << "* u_" << y_->index << " % Scale "
+                                  << std::endl;
+            } else if (beta == 0) {
+                this->debugwriter << "u_" << y_->index << " = " << alpha << "*u_" << x_->index << "  % Replace "
+                                  << std::endl;
+            } else {
+                this->debugwriter << "u_" << y_->index << " = " << alpha << "* u_" << x_->index << "  + " << beta
+                                  << "* u_"
+                                  << y_->index << " % Sum " << std::endl;
+            }
+        }
+#endif
+#if TRACE_CONST == 1
+        y->m_const = false;
+#endif
+        auto *xref = (SPGridFunction *) x_->value;
+        auto *yref = (SPGridFunction *) y_->value;
+        this->m_log->o << "vec add " << x_->time << "\t" << y_->time << std::endl;
+        VecAdd(beta, *yref->get(), alpha, *xref->get());
 
+
+        //auto gridlevel = (*yref)->grid_level();
+        //this->m_domain_disc->adjust_solution(*yref->get(), y_->time ,gridlevel);
+        //double dt = 2.22e-13;
+        //auto loc_time_integrator = m_fine_time_integrator_factory->create_level_time_integrator(dt, false, 0);
+        //loc_time_integrator->init(*yref->get()->clone());
+        //loc_time_integrator->prepare(*yref->get()->clone());
+
+        //std::cout  << "calc consistency::: " << std::endl;
+        //bool success = loc_time_integrator->apply(*yref, y_->time+dt, (*yref).cast_const(), y_->time);
+        //if(success){
+//            std::cout << "consistency calc done " << std::endl;
+//        } else {
+//            std::cout << "consistency something is wrong " << std::endl;
+//        }
+
+        //this->m_log->o << "consist = " << y_->time << std::endl;
+        StopOperationTimer(Observer::T_SUM);
+#if TRACE_INDEX == 1
+        MATLAB(yref->get(), y->index, -1.0);
+#endif
+        //this->m_log->o << "debug::BraidGridFunctionBase::Sum[[end]]" << std::endl<<std::flush;
+        return 0;
+    };
+*/
 
     typedef ug::StdConvCheck<typename TAlgebra::vector_type> TConv;
     typedef SmartPtr<TConv> SPConv;

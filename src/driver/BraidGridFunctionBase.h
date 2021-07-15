@@ -67,21 +67,42 @@ public: // todo set better modes
 
     typedef BraidSpatialNorm<TDomain,TAlgebra> TSpatialNorm;
     typedef SmartPtr<TSpatialNorm> SPSpatialNorm;
-    SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtkScriptor;
+    SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtk_scriptor;
+    SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtk_ustart_before;
+    SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtk_ustart_after;
+    SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtk_uend_after;
+    SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtk_uend_before;
 /* ---------------------------------------------------------------------------------------------------------------------
  * Member Variables
  -------------------------------------------------------------------------------------------------------------------- */
 
     void set_vtk_scriptor(SmartPtr<VTKScriptor<TDomain,TAlgebra>> sp_scriptor){
-        this->vtkScriptor = sp_scriptor;
+        this->vtk_scriptor = sp_scriptor;
+    }
+
+    void set_vtk_ustart_before(SmartPtr<VTKScriptor<TDomain,TAlgebra>> sp_scriptor){
+        this->vtk_ustart_before = sp_scriptor;
+    }
+    void set_vtk_ustart_after(SmartPtr<VTKScriptor<TDomain,TAlgebra>> sp_scriptor){
+        this->vtk_ustart_after = sp_scriptor;
+    }
+
+    void set_vtk_uend_before(SmartPtr<VTKScriptor<TDomain,TAlgebra>> sp_scriptor){
+        this->vtk_uend_before = sp_scriptor;
+    }
+
+    void set_vtk_uend_after(SmartPtr<VTKScriptor<TDomain,TAlgebra>> sp_scriptor){
+        this->vtk_uend_after = sp_scriptor;
     }
 
     SPParalog m_log;
+    SPParalog m_script_log;
+
     const char * m_name = nullptr;
     SPSpaceTimeCommunicator m_comm;
     bool m_verbose = true;
     SPGridFunction m_u0; // for t = tstart
-    std::ofstream debugwriter;
+
     int m_levels = 15;
     bool provide_residual = false;
 
@@ -94,12 +115,10 @@ public: // todo set better modes
     SPSpatialNorm m_norm;
 
     BraidTimer m_timer;
-#if TRACE_TIMINGS == 1
+
     BraidTimeLogManager m_time_log_manager;
-#endif
-#if TRACE_GRIDFUNCTION == 1
-    SPMATLABScriptor matlab;
-#endif
+
+
     /**
     * Note that this default constructor does not create a consistent object. The parameter t_comm (of type MPI_Comm)
     * for the temporal communication has to be set.
@@ -121,11 +140,6 @@ public: // todo set better modes
 * ------------------------------------------------------------------------------------------------------------------- */
     braid_Int Init(braid_Real t, braid_Vector *u_ptr) override {
         //this->m_log->o << "debug::BraidGridFunctionBase::Init[[args]]" << std::endl<<std::flush;
-#if TRACE_INDEX == 1
-        if (this->m_verbose) {
-            this->debugwriter << "u_" << indexpool << " = init(" << t << ")" << std::endl;
-        }
-#endif
         StartOperationTimer(Observer::T_INIT);
         auto *u = (BraidVector *) malloc(sizeof(BraidVector));
         auto *vec = new SPGridFunction();
@@ -134,11 +148,11 @@ public: // todo set better modes
         u->value = vec;
         u->time = t;
 
-#if TRACE_INDEX == 1
+
+        this->m_script_log->o << "u_" << indexpool << " = init(" << t << ")" << std::endl;
         u->index = indexpool;
         indexpool++;
-        MATLAB(vec->get(), u->index, t);
-#endif
+
         *u_ptr = u;
 
         // ----> test init norm
@@ -158,11 +172,6 @@ public: // todo set better modes
     braid_Int Clone(braid_Vector u_, braid_Vector *v_ptr) override {
         //this->m_log->o << "debug::BraidGridFunctionBase::Clone[[args]]" << std::endl<<std::flush;
         StartOperationTimer(Observer::T_CLONE);
-#if TRACE_INDEX == 1
-        if (this->m_verbose) {
-            this->debugwriter << "u_" << indexpool << " = clone(u_" << u_->index << ")" << std::endl;
-        }
-#endif
         //this->m_log->o << "debug::BraidGridFunctionBase::Clone[unpack->]" << std::endl<<std::flush;
 
         auto *v = (BraidVector *) malloc(sizeof(BraidVector));
@@ -174,11 +183,12 @@ public: // todo set better modes
         v->value = vref;
         v->time = u_->time;
 
-#if TRACE_INDEX == 1
+
+        this->m_script_log->o << "u_" << indexpool << " = clone(u_" << u_->index << ")" << std::endl;
+
         v->index = indexpool;
         indexpool++;
-        MATLAB(vref->get(), v->index, -1.0);
-#endif
+
 
         *v_ptr = v;
 
@@ -199,17 +209,9 @@ public: // todo set better modes
         //this->m_log->o << "debug::BraidGridFunctionBase::Free[[args]]" << std::endl<<std::flush;
         StartOperationTimer(Observer::T_FREE);
 
-#if TRACE_INDEX == 1
-        if (this->m_verbose) {
-            this->debugwriter << "u_" << u_->index << " = null" << std::endl;
-        }
-#if TRACE_CONST == 1
-        if (u->m_const) {
-        this->o << "u_" << u_->index << " was const" << std::endl;
-        const_free++;
-    }
-#endif // Trace Index
-#endif // trace const
+
+        this->m_script_log->o  << "u_" << u_->index << " = null" << std::endl;
+
         auto *u_value = (SPGridFunction *) u_->value;
         delete u_value;
         free(u_);
@@ -224,24 +226,20 @@ public: // todo set better modes
     braid_Int Sum(braid_Real alpha,braid_Vector x_,braid_Real beta,braid_Vector y_) override {
         //this->m_log->o << "debug::BraidGridFunctionBase::Sum[[args]]" << std::endl<<std::flush;
         StartOperationTimer(Observer::T_SUM);
-#if TRACE_INDEX == 1
-        if (this->m_verbose) {
+
             if (alpha == 0) {
-                this->debugwriter << "u_" << y_->index << " = " << beta << "* u_" << y_->index << " % Scale "
+                this->m_script_log->o  << "u_" << y_->index << " = " << beta << "* u_" << y_->index << " % Skalierung "
                                   << std::endl;
             } else if (beta == 0) {
-                this->debugwriter << "u_" << y_->index << " = " << alpha << "*u_" << x_->index << "  % Replace "
+                this->m_script_log->o  << "u_" << y_->index << " = " << alpha << "*u_" << x_->index << "  % Ersetzung "
                                   << std::endl;
             } else {
-                this->debugwriter << "u_" << y_->index << " = " << alpha << "* u_" << x_->index << "  + " << beta
+                this->m_script_log->o  << "u_" << y_->index << " = " << alpha << "* u_" << x_->index << "  + " << beta
                                   << "* u_"
-                                  << y_->index << " % Sum " << std::endl;
+                                  << y_->index << " % Summe " << std::endl;
             }
-        }
-#endif
-#if TRACE_CONST == 1
-        y->m_const = false;
-#endif
+
+
         auto *xref = (SPGridFunction *) x_->value;
         auto *yref = (SPGridFunction *) y_->value;
         //this->m_log->o << "vec add " << x_->time << "\t" << y_->time << std::endl;
@@ -251,9 +249,8 @@ public: // todo set better modes
 
         // this->m_log->o << "adjust - time = " << y_->time << std::endl;
         StopOperationTimer(Observer::T_SUM);
-#if TRACE_INDEX == 1
-        MATLAB(yref->get(), y->index, -1.0);
-#endif
+
+
         //this->m_log->o << "debug::BraidGridFunctionBase::Sum[[end]]" << std::endl<<std::flush;
         return 0;
     };
@@ -266,11 +263,9 @@ public: // todo set better modes
         auto *uref = (SPGridFunction *) u_->value;
         SPGridFunction tempobject = uref->get()->clone(); // clone to ensure consistency
         *norm_ptr = m_norm->norm(tempobject);
-#if TRACE_INDEX == 1
-        if (this->m_verbose) {
-            this->debugwriter << "norm( u_" << u_->index << ") % " << *norm_ptr << std::endl;
-        }
-#endif
+
+        this->m_script_log->o  << "norm( u_" << u_->index << ") % value ="  << *norm_ptr << std::endl;
+
         //this->m_log->o << "debug::BraidGridFunctionBase::SpatialNorm[[end]]" << std::endl<<std::flush;
         return 0;
     };
@@ -282,11 +277,9 @@ public: // todo set better modes
         //print_status(this->m_log->o,astatus);
 
         StartOperationTimer(Observer::T_ACCESS);
-#if TRACE_INDEX == 1
-        if (this->m_verbose) {
-            this->debugwriter << "% \t Access \t" << u_->index << std::endl;
-        }
-#endif
+
+
+
 
         int v;
         int index;
@@ -304,9 +297,13 @@ public: // todo set better modes
         astatus.GetIter(&iter);
         astatus.GetLevel(&lvl);
         astatus.GetDone(&done);
+
+
         if (done == 1) {
+            this->m_script_log->o << "access( u_" << u_->index<< ")    @t="<<u_->time<< std::endl;
             v = this->m_out->write(ref, index, timestamp);
         } else {
+            this->m_script_log->o << "access( u_" << u_->index<< ")    @t="<<u_->time<<"  filename=access_k"<<iter<<"_l"<<lvl<<"_t"<<std::setw(4) << std::setfill('0') <<index << ".vtu"<< std::endl;
             v = this->m_out->write(ref, index, timestamp, iter, lvl);
         }
 
@@ -326,6 +323,7 @@ public: // todo set better modes
                     + 2 * sizeof(int) // todo find out what this is :)
                     + sizeof(double);
         //this->m_log->o << "debug::BraidGridFunctionBase::BufSize[[end]]" << std::endl<<std::flush;
+        //this->m_script_log->o << "buffer_size = " << *size_ptr << std::flush << std::endl;
         return 0;
     };
 
@@ -336,12 +334,8 @@ public: // todo set better modes
         //print_status(this->m_log->o,bstatus);
         StartOperationTimer(Observer::T_SEND);
 
+        this->m_script_log->o << "send(u_" << u_->index << ")" << std::endl << std::flush;
 
-#if TRACE_INDEX == 1
-        if (this->m_verbose) {
-            debugwriter << "send(u_" << u_->index << ")" << std::endl << std::flush;
-        }
-#endif
 
         int bufferSize = 0; // startposition of gridfunction (will be written first) in buffer
         // delegate writing of gridfunction
@@ -354,11 +348,11 @@ public: // todo set better modes
         memcpy(chBuffer + bufferSize, &temprank, sizeof(int));
         bufferSize += sizeof(int);
 
-        // write temporal rank of source processor
-#if TRACE_INDEX == 1
+        // write index of vector
+
         memcpy(chBuffer + bufferSize, &u_->index, sizeof(int));
         bufferSize += sizeof(int);
-#endif
+
 
         // write time for gridfunction
         memcpy(chBuffer + bufferSize, &u_->time, sizeof(double));
@@ -367,13 +361,13 @@ public: // todo set better modes
         bstatus.SetSize(bufferSize);
 
         StopOperationTimer(Observer::T_SEND);
-#if TRACE_RECVTIME == 1
+
         double diff, total;
         this->m_timer.now(total, diff);
-        this->debugwriter << std::setw(10) << "@time:"
+        this->m_script_log->o << std::setw(10) << "@time:"
                           << std::setw(12) << total << " ; "
                           << std::setw(12) << diff << " Vector Send" << std::endl;
-#endif
+
         //this->m_log->o << "debug::BraidGridFunctionBase::BufPack[[end]]" << std::endl<<std::flush;
         return 0;
     };
@@ -383,20 +377,14 @@ public: // todo set better modes
     braid_Int BufUnpack(void *buffer, braid_Vector *u_ptr, BraidBufferStatus &bstatus) override {
         //this->m_log->o << "debug::BraidGridFunctionBase::BufUnPack[[args]]" << std::endl<<std::flush;
         //print_status(this->m_log->o,bstatus);
-#if TRACE_RECVTIME == 1
+
         double diff, total;
         this->m_timer.now(total, diff);
-        this->debugwriter << std::setw(10) << "@time:"
+        this->m_script_log->o << std::setw(10) << "@time:"
                           << std::setw(12) << total << " ; "
                           << std::setw(12) << diff << " Vector Received" << std::endl;
-#endif
-        StartOperationTimer(Observer::T_RECV);
-#if TRACE_INDEX == 1
-        if (this->m_verbose) {
-            this->debugwriter << "u_" << indexpool << " = ";
-        }
-#endif
 
+        StartOperationTimer(Observer::T_RECV);
         int pos = 0 ; // startposition of gridfunction (will be read first) in buffer
         //BufSize(&bufferSize, bstatus);
         auto *u = (BraidVector *) malloc(sizeof(BraidVector));
@@ -413,14 +401,15 @@ public: // todo set better modes
         pos += sizeof(int);
 
         // read temporal rank of source processor
-#if TRACE_INDEX == 1
+
+        if (this->m_verbose) {
+            this->m_script_log->o << "u_" << indexpool << " = ";
+        }
         int index;
         memcpy(&index, chBuffer + pos, sizeof(int));
         pos += sizeof(int);
-        if (this->m_verbose) {
-            debugwriter << "rec( v_" << temprank << "_" << index << ")" << std::endl;
-        }
-#endif
+        this->m_script_log->o << "rec( v_" << temprank << "_" << index << ")" << std::endl;
+
 
         double t;
         memcpy(&t, chBuffer + pos, sizeof(double));
@@ -429,11 +418,10 @@ public: // todo set better modes
         u->time = t;
         this->m_log->o  << "time read: " << u->time << std::endl;
 
-#if TRACE_INDEX == 1
+
         u->index = indexpool;
         indexpool++;
-        MATLAB(sp_u->get(), u->index, -1.0);
-#endif
+
         *u_ptr = u;
         StopOperationTimer(Observer::T_RECV);
         //this->m_log->o << "debug::BraidGridFunctionBase::BufUnPack[[end]]" << std::endl<<std::flush;
@@ -501,20 +489,21 @@ public: // todo set better modes
         this->m_log = log;
     }
 
+    void set_paralog_script(SPParalog log){
+        this->m_script_log = log;
+    }
 
+    void set_script_log(SPParalog log){
+        this->m_script_log = log;
+    }
 
     void init() {
         this->m_log->init();
         //this->m_log->o << "debug::BraidGridFunctionBase::init[[args]]" << std::endl<<std::flush;
-
-
         this->m_timer.start(); // to trace send and receive times / MPI
-#if TRACE_TIMINGS == 1
         this->m_time_log_manager = BraidTimeLogManager(this->m_levels);
-#endif
-#if TRACE_GRIDFUNCTION == 1
-        this->matlab = SmartPtr<MATLABScriptor<TDomain, TAlgebra>>(new MATLABScriptor<TDomain, TAlgebra>(this->o));
-#endif
+
+
         //const ug::GridLevel gridlevel = this->m_u0->grid_level();
         //m_A = SPAssembledOperator(new TAssembledOperator(m_timeDisc, gridlevel));
         //this->m_log->o << "finished init" << std::endl << std::flush;
@@ -616,11 +605,9 @@ public: // todo set better modes
     }
 
     void set_max_levels(size_t levelcount) {
-#if TRACE_TIMINGS == 1
         if(levelcount > 10) {
             std::cerr << "Warning: Tracing times is currently limited to 15 level" << std::endl; // todo clean up
         }
-#endif
         this->m_levels = levelcount;
     }
 

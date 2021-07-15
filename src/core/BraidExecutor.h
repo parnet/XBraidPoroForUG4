@@ -621,7 +621,6 @@ public: // todo set better modes
         // todo c factors afterwards
         this->m_log->o << "===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====" << std::endl;
     }
-#ifdef UG_FOR_LUA
 
     int test(SPGridFunction u0,
              const char *generator,
@@ -678,11 +677,14 @@ public: // todo set better modes
         return true;
     }
 
-#endif
-
     void set_paralog(SPParalog log) {
         this->m_log = log;
         this->m_app->set_paralog(log);
+    }
+
+
+    void set_paralog_script(SPParalog log){
+        this->m_app->set_paralog_script(log);
     }
 };
 

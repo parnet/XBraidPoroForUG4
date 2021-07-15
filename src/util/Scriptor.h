@@ -10,7 +10,8 @@
 #include "lib_algebra/vector_interface/vec_functions.h"
 #include "../interface/scriptor.h"
 
-
+#include <map>
+#include <tuple>
 /**
  * Compatibility class to simulate ug::VTKOutput
  * @tparam TDomain
@@ -27,6 +28,10 @@ public:
     SPVTKOutput m_out;
     const char *m_filename;
 
+
+    typedef std::tuple<int, int, int> TKey;
+    std::map<TKey, int> map;
+
     VTKScriptor(SPVTKOutput p_out, const char *filename) : Scriptor<TDomain, TAlgebra>() {
         m_out = p_out;
         m_filename = filename;
@@ -41,7 +46,20 @@ public:
 
     bool write(SPGridFunction u, int index, double time, int iteration, int level) override {
         std::stringstream ss;
-        ss << m_filename << "_k" << iteration << "_l" << level;
+
+        int count = 0;
+        auto tuple = std::make_tuple(index,iteration,level);
+        auto it = map.find(tuple);
+        if(it != map.end()){
+            count = it ->second;
+            count += 1;
+            map[tuple] = count;
+        } else {
+            count = 0;
+            map.emplace(tuple,0);
+        }
+
+        ss << m_filename << "_k" << iteration << "_l" << level << "_c" << count;
         this->m_out->print(ss.str().c_str(), *u, index, time);
         return true;
     };

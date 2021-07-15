@@ -67,64 +67,11 @@ public: // todo set better modes
     //typedef ug::ISubDiagErrorEst<TVector> TErrorEstimatorType;
     //typedef ug::AitkenNevilleTimex<TVector> TTimexType;
 
-/*
-    braid_Int Sum(braid_Real alpha,braid_Vector x_,braid_Real beta,braid_Vector y_) override {
-        //this->m_log->o << "debug::BraidGridFunctionBase::Sum[[args]]" << std::endl<<std::flush;
-        StartOperationTimer(Observer::T_SUM);
-#if TRACE_INDEX == 1
-        if (this->m_verbose) {
-            if (alpha == 0) {
-                this->debugwriter << "u_" << y_->index << " = " << beta << "* u_" << y_->index << " % Scale "
-                                  << std::endl;
-            } else if (beta == 0) {
-                this->debugwriter << "u_" << y_->index << " = " << alpha << "*u_" << x_->index << "  % Replace "
-                                  << std::endl;
-            } else {
-                this->debugwriter << "u_" << y_->index << " = " << alpha << "* u_" << x_->index << "  + " << beta
-                                  << "* u_"
-                                  << y_->index << " % Sum " << std::endl;
-            }
-        }
-#endif
-#if TRACE_CONST == 1
-        y->m_const = false;
-#endif
-        auto *xref = (SPGridFunction *) x_->value;
-        auto *yref = (SPGridFunction *) y_->value;
-        this->m_log->o << "vec add " << x_->time << "\t" << y_->time << std::endl;
-        VecAdd(beta, *yref->get(), alpha, *xref->get());
-
-
-        //auto gridlevel = (*yref)->grid_level();
-        //this->m_domain_disc->adjust_solution(*yref->get(), y_->time ,gridlevel);
-        //double dt = 2.22e-13;
-        //auto loc_time_integrator = m_fine_time_integrator_factory->create_level_time_integrator(dt, false, 0);
-        //loc_time_integrator->init(*yref->get()->clone());
-        //loc_time_integrator->prepare(*yref->get()->clone());
-
-        //std::cout  << "calc consistency::: " << std::endl;
-        //bool success = loc_time_integrator->apply(*yref, y_->time+dt, (*yref).cast_const(), y_->time);
-        //if(success){
-//            std::cout << "consistency calc done " << std::endl;
-//        } else {
-//            std::cout << "consistency something is wrong " << std::endl;
-//        }
-
-        //this->m_log->o << "consist = " << y_->time << std::endl;
-        StopOperationTimer(Observer::T_SUM);
-#if TRACE_INDEX == 1
-        MATLAB(yref->get(), y->index, -1.0);
-#endif
-        //this->m_log->o << "debug::BraidGridFunctionBase::Sum[[end]]" << std::endl<<std::flush;
-        return 0;
-    };
-*/
 
     typedef ug::StdConvCheck<typename TAlgebra::vector_type> TConv;
     typedef SmartPtr<TConv> SPConv;
 
 
-    typedef SmartPtr<MATLABScriptor<TDomain, TAlgebra>> SPMATLABScriptor;
     typedef SmartPtr <SpaceTimeCommunicator> SPCommunicator;
 
     typedef Paralog TParalog;
@@ -186,13 +133,8 @@ public:
         //this->m_log->o << "debug::BraidIntegrator::Step[[args]]" << std::endl<<std::flush;
         //print_status(this->m_log->o,pstatus);
 
-#if TRACE_CONST == 1
-        u->m_const = false;
-//ustop->m_const = false;
-#endif
         int level; // level
         pstatus.GetLevel(&level);
-        std::cout <<"XBRAID LEVEL = " << level << std::endl;
         StartLevelOperationTimer(LevelObserver::TL_STEP, level);
         double t_start, t_stop;
         pstatus.GetTstartTstop(&t_start, &t_stop);
@@ -200,31 +142,32 @@ public:
         pstatus.GetDone(&idone);
 
         double current_dt = t_stop - t_start;
-        if (this->m_verbose) {
-            int tindex;
-            pstatus.GetTIndex(&tindex);
-            int iteration;
-            pstatus.GetIter(&iteration);
-#if TRACE_INDEX == 1
 
+        int tindex;
+        pstatus.GetTIndex(&tindex);
+        int iteration;
+        pstatus.GetIter(&iteration);
 
-            if (fstop_ == nullptr) {
-                this->m_log->o << "u_" << u_->index << " = step_" << level << "_n( u_" << u_->index << ", u_" << ustop_->index
-                               << ", null, " << t_start << ", " << current_dt << ", " << t_stop << ", " << level
-                               << ")"
-                               << "\t\t % " << "idx("<< tindex<<") iter=" << iteration << std::endl<< std::flush;
-            } else {
-                this->m_log->o << "u_" << u_->index << " = step_" << level << "_r( u_" << u_->index << ", u_" << ustop_->index
-                               << ", u_"
-                               << fstop_->index << ", " << t_start << ", " << current_dt << ", " << t_stop << ", "
-                               << level << ")"
-                               << " % " << tindex << std::endl << std::flush;
-            }
-
-#else
-            //this->m_log->o << std::setw(13) << iteration << "step for level " << level << " at position " << tindex << " and iteration" << std::endl;
-#endif
+        SPTimeIntegrator loc_time_integrator;
+        if(level <= 0) {
+            loc_time_integrator = m_fine_time_integrator_factory->create_level_time_integrator(current_dt, bool(idone), level);
+        } else {
+            loc_time_integrator = m_coarse_time_integrator_factory->create_level_time_integrator(current_dt, bool(idone), level);
         }
+
+        if (fstop_ == nullptr) {
+            this->m_script_log->o << "u_" << u_->index << " = integrator_"<< level <<".apply(u_" << ustop_->index << ", "<< t_stop << ", u_" << u_->index << ", " << t_start << ")"
+                           << "\t\t % " << "level=" << level << " dt=" << current_dt << " t_index="<< tindex<<" iteration=" << iteration << " integrator: " << m_fine_time_integrator_factory->m_name << std::endl<< std::flush;
+        } else {
+            this->m_script_log->o << "u_" << u_->index << " = step_" << level << "( u_" << u_->index << ", u_" << ustop_->index
+                           << ", u_"
+                           << fstop_->index << ", " << t_start << ", " << current_dt << ", " << t_stop << ", "
+                           << level << ")"
+                           << " % " << tindex << std::endl << std::flush;
+        }
+
+
+
         auto *sp_u_approx_tstart = (SPGridFunction *) u_->value;
         auto *constsp_u_approx_tstop = (SPGridFunction *) ustop_->value;
 
@@ -232,27 +175,23 @@ public:
         //SPGridFunction lp = constsp_u_approx_tstop->get()->clone();
         //SPGridFunction sp_rhs = this->m_u0->clone_without_values(); // for rhs
 
+        {
+            SPGridFunction tempobject_b = sp_u_approx_tstart->get()->clone(); // clone to ensure consistency
+            //this->vtk_ustart_before->set_filename("sp_u_tstart_before");
+            this->vtk_ustart_before->write(tempobject_b,tindex,t_start,iteration,level);
+        }
 
-        int tindex;
-        pstatus.GetTIndex(&tindex);
-        int iteration;
-        pstatus.GetIter(&iteration);
-        //{
-        //    SPGridFunction tempobject_b = sp_u_approx_tstart->get()->clone(); // clone to ensure consistency
-        //    this->vtkScriptor->set_filename("sp_u_tstart_before");
-        //    this->vtkScriptor->write(tempobject_b,tindex,t_start,iteration,level);
-        //}
-
-        //{
-        //    SPGridFunction tempobject_b = sp_u_tstop_approx->clone(); // clone to ensure consistency
-        //    this->vtkScriptor->set_filename("sp_u_tstop_before");
-        //    this->vtkScriptor->write(tempobject_b,tindex,t_stop,iteration,level);
-        //}
+        {
+            SPGridFunction tempobject_b = sp_u_tstop_approx->clone(); // clone to ensure consistency
+            //this->vtkScriptor->set_filename("sp_u_tstop_before");
+            this->vtk_uend_before->write(tempobject_b,tindex,t_stop,iteration,level);
+        }
 
         //const ug::GridLevel gridlevel = sp_u_approx_tstart->get()->grid_level();
         // todo adapt conv check?
         if (fstop_ != nullptr) {
             //this->m_log->o << "Warning residul is ignored" << std::endl<< std::flush;
+            exit(127);
         } else {
             //this->m_log->o << "residual not used " << std::endl<< std::flush;
         }
@@ -260,24 +199,14 @@ public:
 
 //this->m_log->o << "fstop" << std::endl;
 
-#if TRACE_INDEX == 1
-        MATLAB(sp_rhs->clone().get(), u->index, t_stop);
-#endif
+
 //this->m_log->o << "solve" << std::endl;
         StartLevelOperationTimer(LevelObserver::TL_SOLVE, level);
         // smartptr, const smartptr
         //this->m_log->o << "integrator creation and application starts " << std::endl<< std::flush;
-        SPTimeIntegrator loc_time_integrator;
-        std::cout << "XBRAID Integrator solving level = " << level << std::endl;
-        if(level <= 0) {
-            std::cout << level<< "XBRAID Integrator using fine Integrator "  << m_fine_time_integrator_factory->m_name << std::endl;
-            loc_time_integrator = m_fine_time_integrator_factory->create_level_time_integrator(current_dt, bool(idone), level);
-//            this->m_log->o << m_fine_time_integrator_factory->get_name() << std::endl;
-        } else {
-            std::cout << level<<"XBRAID Integrator using coarse Integrator "  << m_coarse_time_integrator_factory->m_name << std::endl;
-            loc_time_integrator = m_coarse_time_integrator_factory->create_level_time_integrator(current_dt, bool(idone), level);
-//            this->m_log->o << m_coarse_time_integrator_factory->get_name() << std::endl;
-        }
+
+        //std::cout << "XBRAID Integrator solving level = " << level << std::endl;
+
 
 
         //SPGridFunction tempobject_a = sp_u_approx_tstart->get()->clone(); // clone to ensure consistency
@@ -293,23 +222,21 @@ public:
         } else {
             //this->m_log->o << "convergence reached " << std::endl<< std::flush;
         }
-#if TRACE_INDEX == 1
-        MATLAB(sp_u_tstop_approx.get(), u->index, t_stop);
-#endif
+
         *sp_u_approx_tstart = sp_u_tstop_approx; // u_tstart is the return value
         u_->time = t_stop;
 
-        //{
-        //    SPGridFunction tempobject_b = sp_u_approx_tstart->get()->clone(); // clone to ensure consistency
-        //    this->vtkScriptor->set_filename("sp_u_tstart_after");
-        //    this->vtkScriptor->write(tempobject_b,tindex,t_stop,iteration,level);
-        //}
+        {
+            SPGridFunction tempobject_b = sp_u_approx_tstart->get()->clone(); // clone to ensure consistency
+            //this->vtkScriptor->set_filename("sp_u_tstart_after");
+            this->vtk_ustart_after->write(tempobject_b,tindex,t_stop,iteration,level);
+        }
 
-        //{
-        //    SPGridFunction tempobject_b = sp_u_tstop_approx->clone(); // clone to ensure consistency
-        //    this->vtkScriptor->set_filename("sp_u_tstop_after");
-        //    this->vtkScriptor->write(tempobject_b,tindex,t_stop,iteration,level);
-        //}
+        {
+            SPGridFunction tempobject_b = sp_u_tstop_approx->clone(); // clone to ensure consistency
+            //this->vtkScriptor->set_filename("sp_u_tstop_after");
+            this->vtk_uend_after->write(tempobject_b,tindex,t_stop,iteration,level);
+        }
         //this->vtkScriptor->set_filename("access");
 
         StopLevelOperationTimer(LevelObserver::TL_STEP, level);
@@ -326,14 +253,14 @@ public:
         // todo u_->time = time ?
         //this->m_log->o << "ERROR: called residual method for non residual supported integrator";
         //this->m_log->o << "debug::BraidIntegrator::Residual[[end]]" << std::endl<<std::flush;
-        return 0;
+        return 1;
     };
     /* -------------------------------------------------------------------------------------
      * Methods
      * ---------------------------------------------------------------------------------- */
     void release() {
         //this->m_log->o << "debug::BraidIntegrator::release()" << std::endl<<std::flush;
-#if TRACE_TIMINGS
+
         for (int i = Observer::T_INIT; i != Observer::N_OBSERVER; i++) {
             BraidUsageTimer &tel = this->m_time_log_manager.get(static_cast<Observer>(i));
             this->m_log->o << std::setw(20) << ObserverNames[i]
@@ -356,8 +283,9 @@ public:
                                << std::endl;
             }
         }
-#endif
+
     }
+
     void print_settings() {
         this->m_log->o << "debug::BraidIntegrator::print_settings()" << std::endl<<std::flush;
         this->m_log->o << "===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====" << std::endl;
@@ -382,11 +310,11 @@ public:
 
 
     void setMaxLevels(size_t levelcount) {
-#if TRACE_TIMINGS == 1
+
         if(levelcount >= 10 ) {
             std::cerr << "Warning: Tracing times is currently limited to 15 level" << std::endl;
         }
-#endif
+
         this->m_levels = levelcount;
         this->m_levelStep.reserve(this->m_levels);
     }

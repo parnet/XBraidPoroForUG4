@@ -65,8 +65,6 @@ public: // todo set better modes
     typedef ug::StdConvCheck<typename TAlgebra::vector_type> TConv;
     typedef SmartPtr<TConv> SPConv;
 
-
-    typedef SmartPtr<MATLABScriptor<TDomain, TAlgebra>> SPMATLABScriptor;
     typedef SmartPtr <SpaceTimeCommunicator> SPCommunicator;
 
     typedef Paralog TParalog;
@@ -177,9 +175,7 @@ public:
 
 //this->m_log->o << "fstop" << std::endl;
 
-#if TRACE_INDEX == 1
-        MATLAB(sp_rhs->clone().get(), u->index, t_stop);
-#endif
+
 //this->m_log->o << "solve" << std::endl;
         StartLevelOperationTimer(LevelObserver::TL_SOLVE, l);
         // smartptr, const smartptr
@@ -203,9 +199,7 @@ public:
             //this->m_log->o << "convergence reached " << std::endl<< std::flush;
         }
             //this->m_log->o << "output" << std::endl;
-#if TRACE_INDEX == 1
-        MATLAB(sp_u_tstop_approx.get(), u->index, t_stop);
-#endif
+
         *sp_u_approx_tstart = sp_u_tstop_approx;
 //this->m_log->o << "end" << std::endl;
         StopLevelOperationTimer(LevelObserver::TL_STEP, l);

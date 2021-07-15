@@ -380,7 +380,10 @@ namespace ug {
                                     .add_method("set_verbose", &TBraidGridFunctionBase::set_verbose, "None", "verbose",
                                                 "set the level of verbose (true / false)")
                                     .add_method("set_start_time", &TBraidGridFunctionBase::set_start_time, "None","initial time", "set t0 as initial time")
-                                    .add_method("set_vtk_scriptor", &TBraidGridFunctionBase::set_vtk_scriptor, "None","initial time", "set t0 as initial time")
+                                    .add_method("set_vtk_ustart_before", &TBraidGridFunctionBase::set_vtk_ustart_before, "None","initial time", "set t0 as initial time")
+                                    .add_method("set_vtk_ustart_after", &TBraidGridFunctionBase::set_vtk_ustart_after, "None","initial time", "set t0 as initial time")
+                                    .add_method("set_vtk_uend_before", &TBraidGridFunctionBase::set_vtk_uend_before, "None","initial time", "set t0 as initial time")
+                                    .add_method("set_vtk_uend_after", &TBraidGridFunctionBase::set_vtk_uend_after, "None","initial time", "set t0 as initial time")
                                     .add_method("set_end_time", &TBraidGridFunctionBase::set_end_time, "None",
                                                 "end time", "set tN as endtime")
                                     .add_method("set_number_of_timesteps",
@@ -611,6 +614,8 @@ namespace ug {
                                     .add_method("set_app", &TBraidExecutor::set_app, "", "",
                                                 "set vector for time t = t0")
                                     .add_method("set_paralog", &TBraidExecutor::set_paralog, "", "",
+                                                "set vector for time t = t0")
+                                    .add_method("set_paralog_script", &TBraidExecutor::set_paralog_script, "", "",
                                                 "set vector for time t = t0")
                                     .add_method("get_app", &TBraidExecutor::get_app, "braid application", "",
                                                 "set vector for time t = t0")

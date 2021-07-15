@@ -46,7 +46,6 @@ public:
     typedef SmartPtr<TConv> SPConv;
 
 
-    typedef SmartPtr<MATLABScriptor<TDomain, TAlgebra>> SPMATLABScriptor;
     typedef SmartPtr <SpaceTimeCommunicator> SPCommunicator;
 
     typedef Paralog TParalog;
@@ -110,14 +109,14 @@ public:
 //this->o << "adaptConv" << std::endl;
 
         //if (this->adaptConv) {  } // todo
-//this->o << "message" << std::endl;
+//this->m_log->o << "message" << std::endl;
         if (this->m_verbose) {
             int tindex;
             pstatus.GetTIndex(&tindex);
             int iteration;
             pstatus.GetIter(&iteration);
 #if TRACE_INDEX == 1
-            if (fstop_ == nullptr) {
+            /*if (fstop_ == nullptr) {
                 this->debugwriter << "u_" << u_->index << " = step_"<<l<<"_n( u_" << u_->index << ", u_" << ustop_->index
                                   << ", null, " << t_start << ", " << current_dt << ", " << t_stop << ", " << l
                                   << ")"
@@ -128,13 +127,13 @@ public:
                                   << fstop_->index << ", " << t_start << ", " << current_dt << ", " << t_stop << ", "
                                   << l << ")"
                                   << " % " << tindex << std::endl;
-            }
+            }*/
 
 #else
-            this->o << std::setw(13) << iteration << "step for level " << l << " at position " << tindex << " and iteration" << std::endl;
+            this->m_log->o << std::setw(13) << iteration << "step for level " << l << " at position " << tindex << " and iteration" << std::endl;
 #endif
         }
-//this->o << "preparation" << std::endl;
+//this->m_log->o << "preparation" << std::endl;
         auto *sp_u_approx_tstart = (SPGridFunction *) u_->value;
         auto *constsp_u_approx_tstop = (SPGridFunction *) ustop_->value;
         SPGridFunction sp_u_tstop_approx = constsp_u_approx_tstop->get()->clone();
@@ -151,12 +150,10 @@ public:
         }
 
 
-//this->o << "fstop" << std::endl;
+//this->m_log->o << "fstop" << std::endl;
 
-#if TRACE_INDEX == 1
-        MATLAB(sp_rhs->clone().get(), u->index, t_stop);
-#endif
-//this->o << "solve" << std::endl;
+
+//this->m_log->o << "solve" << std::endl;
         //StartLevelOperationTimer(LevelObserver::TL_SOLVE,l);
 
         bool success;
@@ -206,28 +203,25 @@ public:
         //ptr_time_integrator->apply(u_end, t_end, u_start, t_start);
         //StopLevelOperationTimer(LevelObserver::TL_SOLVE,l);
 
-#if TRACE_DEFECT == 1
-        if(this->m_verbose){
-            //this->o << std::setw(20) << "@conv Iterations: " << std::setw(12) << m_linSolver->step()
+//#if TRACE_DEFECT == 1
+//        if(this->m_verbose){
+            //this->m_log->o << std::setw(20) << "@conv Iterations: " << std::setw(12) << m_linSolver->step()
             //                  << std::setw(20) << "Reduction: " << std::setw(12) << m_linSolver->reduction()
             //                  << std::setw(20) << "Defect: " << std::setw(12) << m_linSolver->defect() << std::endl;
-        }
-#endif
+        //}
+//#endif
 
         if (!success) {
             this->m_log->o << "!!! Failure convergence not reached" << std::endl;
             exit(127);
-        } else {
-            this->m_log->o << "converged " << std::flush << std::endl;
-        }
+        } //else {
+            //this->m_log->o << "converged " << std::flush << std::endl;
+        //}
 
-        //this->o << "output" << std::endl;
-#if TRACE_INDEX == 1
-        MATLAB(sp_u_tstop_approx.get(), u->index, t_stop);
-#endif
+        //this->m_log->o << "output" << std::endl;
         //*sp_u_approx_tstart = sp_u_tstop_approx;
         //series->clear();
-//this->o << "end" << std::endl;
+//this->m_log->o << "end" << std::endl;
         //StopLevelOperationTimer(LevelObserver::TL_STEP,l);
         return 0;
     };
@@ -248,12 +242,12 @@ public:
         pstatus.GetTIndex(&tindex);
 
 #if TRACE_INDEX == 1
-        if (this->m_verbose) {
+        /*if (this->m_verbose) {
             this->debugwriter << "u_" << r_->index << " =  residual( u_" << u_->index << " , u_" << r_->index
                               << ", "
                               << t_start << ", " << current_dt << ", " << t_stop << ", " << timegrid_level << ")"
                               << " % " << tindex << std::endl;
-        }
+        }*/
 #endif
 
         auto *const_u_approx_tstop = (SPGridFunction *) u_->value;
@@ -291,9 +285,7 @@ public:
         // SPGridFunction  def = sp_rhs->clone(); // todo alternative?
         // m_timeDisc->assemble_defect(*def.get(),*const_u_approx_tstop->get(),gridlevel);
         // VecAdd(1,*def.get(),-1,*u_approx_tstart->get());
-#if TRACE_INDEX == 1
-        // MATLAB(sp_rhs.get(), u->index, t_stop);
-#endif
+
         // *u_approx_tstart = *const_u_approx_tstop;
         // series->clear();
         // StopLevelOperationTimer(LevelObserver::TL_RESIDUAL, timegrid_level);

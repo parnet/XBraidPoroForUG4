@@ -7,16 +7,8 @@
 
 #include "../../libs/braid/braid/braid.hpp"
 
-#define TRACE_INDEX 1
-#define TRACE_CONST 0
-#define TRACE_DEFECT 1
-#define TRACE_ACCESS 1
 
-/**
- * To display the grid functions as matlab vectors (for debugging)
- */
-#define TRACE_GRIDFUNCTION 0
-
+#define WRITE_SCRIPT 1
 /**
  * To display the time points to which the BufferUnpack and BufferPack functions are requested to
  */
@@ -24,22 +16,15 @@
 #define TRACE_TIMINGS 1
 
 #if TRACE_TIMINGS == 1
-#define StartOperationTimer(opt) this->m_time_log_manager.get(opt).start()
-#define StopOperationTimer(opt) this->m_time_log_manager.get(opt).stop()
-#define StartLevelOperationTimer(opt, l) this->m_time_log_manager.get(opt,l).start()
-#define StopLevelOperationTimer(opt, l) this->m_time_log_manager.get(opt,l).stop()
+    #define StartOperationTimer(opt) this->m_time_log_manager.get(opt).start()
+    #define StopOperationTimer(opt) this->m_time_log_manager.get(opt).stop()
+    #define StartLevelOperationTimer(opt, l) this->m_time_log_manager.get(opt,l).start()
+    #define StopLevelOperationTimer(opt, l) this->m_time_log_manager.get(opt,l).stop()
 #else
-#define StartOperationTimer(opt)
-#define StopOperationTimer(opt)
-#define StartLevelOperationTimer(opt, l)
-#define StopLevelOperationTimer(opt, l)
-#endif
-
-
-#if TRACE_GRIDFUNCTION == 1
-#define MATLAB(u,i,t) this->matlab->write(u,i,t)
-#else
-#define MATLAB(u, i, t)
+    #define StartOperationTimer(opt)
+    #define StopOperationTimer(opt)
+    #define StartLevelOperationTimer(opt, l)
+    #define StopLevelOperationTimer(opt, l)
 #endif
 
 
@@ -50,25 +35,19 @@
  */
 typedef struct _braid_Vector_struct {
     void *value{};
+
     double time = 0.0;
 
-#if TRACE_INDEX == 1
+#if WRITE_SCRIPT == 1
     size_t index = 0;
 #endif
 
-#if TRACE_CONST == 1
-    bool m_const = true;
-#endif
 } BraidVector;
 
-#if TRACE_INDEX == 1
-size_t indexpool = 0;
+#if WRITE_SCRIPT == 1
+    size_t indexpool = 0;
 #endif
 
-#if TRACE_CONST == 1
-size_t const_free = 0;
-size_t const_clone = 0;
-#endif
 
 
 void print_status(std::ofstream & printer, BraidAccessStatus &status) {

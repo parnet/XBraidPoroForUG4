@@ -72,6 +72,7 @@ public: // todo set better modes
     SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtk_ustart_after;
     SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtk_uend_after;
     SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtk_uend_before;
+    SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtk_residual;
 /* ---------------------------------------------------------------------------------------------------------------------
  * Member Variables
  -------------------------------------------------------------------------------------------------------------------- */
@@ -93,6 +94,11 @@ public: // todo set better modes
 
     void set_vtk_uend_after(SmartPtr<VTKScriptor<TDomain,TAlgebra>> sp_scriptor){
         this->vtk_uend_after = sp_scriptor;
+    }
+
+    void set_vtk_residual(SmartPtr<VTKScriptor<TDomain,TAlgebra>> sp_scriptor){
+        std::cout << "scriptor set" << std::endl;
+        this->vtk_residual =  sp_scriptor;
     }
 
     SPParalog m_log;
@@ -263,6 +269,11 @@ public: // todo set better modes
         auto *uref = (SPGridFunction *) u_->value;
         SPGridFunction tempobject = uref->get()->clone(); // clone to ensure consistency
         *norm_ptr = m_norm->norm(tempobject);
+
+        {
+            SPGridFunction tempobject_n = uref->get()->clone();
+            vtk_residual->write(tempobject_n,0,0,0,0);
+        }
 
         this->m_script_log->o  << "norm( u_" << u_->index << ") % value ="  << *norm_ptr << std::endl;
 

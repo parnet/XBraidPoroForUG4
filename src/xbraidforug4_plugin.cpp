@@ -384,6 +384,7 @@ namespace ug {
                                     .add_method("set_vtk_ustart_after", &TBraidGridFunctionBase::set_vtk_ustart_after, "None","initial time", "set t0 as initial time")
                                     .add_method("set_vtk_uend_before", &TBraidGridFunctionBase::set_vtk_uend_before, "None","initial time", "set t0 as initial time")
                                     .add_method("set_vtk_uend_after", &TBraidGridFunctionBase::set_vtk_uend_after, "None","initial time", "set t0 as initial time")
+                                    .add_method("set_vtk_residual", &TBraidGridFunctionBase::set_vtk_residual, "None","initial time", "set t0 as initial time")
                                     .add_method("set_end_time", &TBraidGridFunctionBase::set_end_time, "None",
                                                 "end time", "set tN as endtime")
                                     .add_method("set_number_of_timesteps",

@@ -301,9 +301,11 @@ public:
         //this->m_adapt_conv_check = b_state;
     }
 
-    void set_max_levels(int num_level) {
-        BraidGridFunctionBase<TDomain,TAlgebra>::set_max_levels(num_level);
-        this->m_level_integrator.resize(num_level,SPNULL);
+
+
+    void set_max_levels(int level) {
+        BraidGridFunctionBase<TDomain,TAlgebra>::set_max_levels(level);
+        this->m_level_integrator.resize(level,SPNULL);
     }
 
 /*

@@ -175,13 +175,13 @@ public:
         //SPGridFunction lp = constsp_u_approx_tstop->get()->clone();
         //SPGridFunction sp_rhs = this->m_u0->clone_without_values(); // for rhs
 
-        /*{
+        {
             SPGridFunction tempobject_b = sp_u_approx_tstart->get()->clone(); // clone to ensure consistency
             //this->vtk_ustart_before->set_filename("sp_u_tstart_before");
             this->vtk_ustart_before->write(tempobject_b,tindex,t_start,iteration,level);
         }
 
-        {
+        /*{
             SPGridFunction tempobject_b = sp_u_tstop_approx->clone(); // clone to ensure consistency
             //this->vtkScriptor->set_filename("sp_u_tstop_before");
             this->vtk_uend_before->write(tempobject_b,tindex,t_stop,iteration,level);
@@ -226,13 +226,13 @@ public:
         *sp_u_approx_tstart = sp_u_tstop_approx; // u_tstart is the return value
         u_->time = t_stop;
 
-        /*{
+        {
             SPGridFunction tempobject_b = sp_u_approx_tstart->get()->clone(); // clone to ensure consistency
             //this->vtkScriptor->set_filename("sp_u_tstart_after");
             this->vtk_ustart_after->write(tempobject_b,tindex,t_stop,iteration,level);
         }
 
-        {
+        /*{
             SPGridFunction tempobject_b = sp_u_tstop_approx->clone(); // clone to ensure consistency
             //this->vtkScriptor->set_filename("sp_u_tstop_after");
             this->vtk_uend_after->write(tempobject_b,tindex,t_stop,iteration,level);

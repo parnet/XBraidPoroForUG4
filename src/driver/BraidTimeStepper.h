@@ -11,7 +11,7 @@
 #include "lib_algebra/operator/linear_solver/linear_solver.h"
 
 template<typename TDomain, typename TAlgebra>
-class BraidTimeStepper : public BraidGridFunctionBase<TDomain,TAlgebra> {
+class BraidTimeStepper : public BraidGridFunctionBase<TDomain, TAlgebra> {
 public:
     /* *************************************************************************************
      * Type definitions
@@ -31,22 +31,21 @@ public:
     typedef typename TBaseType::solver_type TSolverType;
     typedef SmartPtr<TSolverType> SPSolverType;
 
-    typedef ug::IDomainDiscretization<TAlgebra>	TDomainDisc;
+    typedef ug::IDomainDiscretization<TAlgebra> TDomainDisc;
     typedef SmartPtr<TDomainDisc> SPDomainDisc;
 
     typedef ug::SimpleTimeIntegrator<TDomain, TAlgebra> TTimeIntegratorType;
     typedef ug::LinearImplicitEuler<TAlgebra> TTimeStepType;
-    typedef SmartPtr<TTimeStepType > SPTimeStepType;
+    typedef SmartPtr<TTimeStepType> SPTimeStepType;
     typedef ug::ISubDiagErrorEst<TVector> TErrorEstimatorType;
     typedef ug::AitkenNevilleTimex<TVector> TTimexType;
-
 
 
     typedef ug::StdConvCheck<typename TAlgebra::vector_type> TConv;
     typedef SmartPtr<TConv> SPConv;
 
 
-    typedef SmartPtr <SpaceTimeCommunicator> SPCommunicator;
+    typedef SmartPtr<SpaceTimeCommunicator> SPCommunicator;
 
     typedef Paralog TParalog;
     typedef SmartPtr<TParalog> SPParalog;
@@ -63,7 +62,6 @@ private:
     SPTimeStep m_fine_time_step;
     SPTimeStep m_coarse_time_step;
     SPSolver linSolver;
-    SPDomainDisc domainDisc;
 
 public:
 
@@ -71,237 +69,191 @@ public:
     * Note that this default constructor does not create a consistent object. The parameter t_comm (of type MPI_Comm)
     * for the temporal communication has to be set.
     */
-    BraidTimeStepper() : BraidGridFunctionBase<TDomain,TAlgebra>() {
+    BraidTimeStepper() : BraidGridFunctionBase<TDomain, TAlgebra>() {
         this->m_name = "Braid Time Stepper";
-        this-> provide_residual = true;
+        this->provide_residual = true;
         std::cout << "Braid Time Stepper :: default constructor was used!" << std::endl;
     }
-    BraidTimeStepper(MPI_Comm mpi_temporal, double tstart, double tstop, int steps) : BraidGridFunctionBase<TDomain,TAlgebra>(mpi_temporal, tstart,tstop, steps) {
-        this-> provide_residual = true;
+
+    BraidTimeStepper(MPI_Comm mpi_temporal, double tstart, double tstop, int steps)
+            : BraidGridFunctionBase<TDomain, TAlgebra>(mpi_temporal, tstart, tstop, steps) {
+        this->provide_residual = true;
         this->m_name = "Braid Time Stepper";
     }
+
     ~BraidTimeStepper() = default;
 
     /* -------------------------------------------------------------------------------------
      * XBraid Method definitions
      * ---------------------------------------------------------------------------------- */
 
-    braid_Int Step(braid_Vector u_,braid_Vector ustop_,braid_Vector fstop_,BraidStepStatus &pstatus) override {
+    braid_Int Step(braid_Vector u_, braid_Vector ustop_, braid_Vector fstop_, BraidStepStatus &pstatus) override {
         this->m_log->o << "debug::BraidTimeStepper::Step[[args]]" << std::endl<<std::flush;
-        print_status(this->m_log->o,pstatus);
-#if TRACE_CONST == 1
-        u->m_const = false;
-//ustop->m_const = false;
-#endif
-        int l; // level
-        pstatus.GetLevel(&l);
-        StartLevelOperationTimer(LevelObserver::TL_STEP,l);
+        //print_status(this->m_log->o,pstatus);
+        this->m_log->o << "debug::BraidTimeStepper::retrieve_variables" << std::endl<<std::flush;
+        int level; // level
+        pstatus.GetLevel(&level);
+        // StartLevelOperationTimer(LevelObserver::TL_STEP, level);
         double t_start, t_stop;
         pstatus.GetTstartTstop(&t_start, &t_stop);
-
         int idone;
         pstatus.GetDone(&idone);
-
         double current_dt = t_stop - t_start;
 
-// std::cout << "num stages " << this->m_timeDisc->num_stages() << std::endl;
+        int tindex;
+        pstatus.GetTIndex(&tindex);
+        int iteration;
+        pstatus.GetIter(&iteration);
 
-//this->o << "adaptConv" << std::endl;
-
-        //if (this->adaptConv) {  } // todo
-//this->m_log->o << "message" << std::endl;
-        if (this->m_verbose) {
-            int tindex;
-            pstatus.GetTIndex(&tindex);
-            int iteration;
-            pstatus.GetIter(&iteration);
-#if TRACE_INDEX == 1
-            /*if (fstop_ == nullptr) {
-                this->debugwriter << "u_" << u_->index << " = step_"<<l<<"_n( u_" << u_->index << ", u_" << ustop_->index
-                                  << ", null, " << t_start << ", " << current_dt << ", " << t_stop << ", " << l
-                                  << ")"
-                                  << "\t\t % " << tindex << std::endl;
-            } else {
-                this->debugwriter << "u_" << u_->index << " = step_"<<l<<"_r( u_" << u_->index << ", u_" << ustop_->index
-                                  << ", u_"
-                                  << fstop_->index << ", " << t_start << ", " << current_dt << ", " << t_stop << ", "
-                                  << l << ")"
-                                  << " % " << tindex << std::endl;
-            }*/
-
-#else
-            this->m_log->o << std::setw(13) << iteration << "step for level " << l << " at position " << tindex << " and iteration" << std::endl;
-#endif
+        this->m_log->o << "debug::BraidTimeStepper::print_script" << std::endl<<std::flush;
+        if (fstop_ == nullptr) {
+            this->m_script_log->o << "u_" << u_->index << " = integrator_"<< level <<".apply(u_" << ustop_->index << ", "<< t_stop << ", u_" << u_->index << ", " << t_start << ")"
+                                  << "\t\t % " << "level=" << level << " dt=" << current_dt << " t_index="<< tindex<<" iteration=" << iteration << " integrator: ThetaTimeStep"  << std::endl<< std::flush;
+        } else {
+            this->m_script_log->o << "u_" << u_->index << " = resintegrator_" << level
+                                                << ".apply( u_" << ustop_->index <<", "<< t_stop
+                                                << ", u_" << u_->index <<", " << t_start
+                                                << ", r_" << fstop_->index << ")"
+                    << "\t\t % " << "level=" << level << " dt=" << current_dt << " t_index="<< tindex<<" iteration=" << iteration << " integrator: ThetaTimeStep"  << std::endl<< std::flush;
         }
-//this->m_log->o << "preparation" << std::endl;
+
+        //this->m_log->o << "debug::BraidTimeStepper::convert_inputs" << std::endl<<std::flush;
         auto *sp_u_approx_tstart = (SPGridFunction *) u_->value;
         auto *constsp_u_approx_tstop = (SPGridFunction *) ustop_->value;
-        SPGridFunction sp_u_tstop_approx = constsp_u_approx_tstop->get()->clone();
-        SPGridFunction lp = constsp_u_approx_tstop->get()->clone();
-
         SPGridFunction sp_rhs = this->m_u0->clone_without_values(); // for rhs
 
+        //SPGridFunction sp_u_tstop_approx = constsp_u_approx_tstop->get()->clone();
+        //SPGridFunction lp = constsp_u_approx_tstop->get()->clone();
 
-        // todo adapt conv check?
-        if (fstop_ != nullptr) {
-            this->m_log->o << "Warning residul is ignored" << std::endl<< std::flush;
-        } else {
-            this->m_log->o << "residual not used " << std::endl<< std::flush;
-        }
-
-
-//this->m_log->o << "fstop" << std::endl;
-
-
-//this->m_log->o << "solve" << std::endl;
         //StartLevelOperationTimer(LevelObserver::TL_SOLVE,l);
-
         bool success;
-
-        //this->m_log->o << "165"<<std::flush << std::endl;
-        this->m_default_time_step = make_sp(new ug::ThetaTimeStep<TAlgebra>(domainDisc));
-
-        //this->m_log->o << "168"<<std::flush << std::endl;
+        //this->m_log->o << "debug::BraidTimeStepper::create_timestep" << std::endl<<std::flush;
+        this->m_default_time_step = make_sp(new ug::ThetaTimeStep<TAlgebra>(this->m_domain_disc));
         this->m_default_time_step->set_theta(1.0); // implicit euler;
-
-        //this->m_log->o << "171"<<std::flush << std::endl;
+        //this->m_log->o << "debug::BraidTimeStepper::create_time_series" << std::endl<<std::flush;
         auto solTimeSeries = make_sp(new ug::VectorTimeSeries<typename TAlgebra::vector_type>());
-
-        //this->m_log->o << "174"<<std::flush << std::endl;
         solTimeSeries->push(sp_u_approx_tstart->get()->clone(), t_start);
-
-        //this->m_log->o << "177"<<std::flush << std::endl;
+        //this->m_log->o << "debug::BraidTimeStepper::create_operator" << std::endl<<std::flush;
         const ug::GridLevel gridlevel = sp_u_approx_tstart->get()->grid_level();
-
-        //this->m_log->o << "180"<<std::flush << std::endl;
         auto Operator_A = make_sp(new ug::AssembledLinearOperator<TAlgebra>(this->m_default_time_step, gridlevel));
 
-        //this->m_log->o << "183"<<std::flush << std::endl;
+        //this->m_log->o << "debug::BraidTimeStepper::prepare_step" << std::endl<<std::flush;
         auto rhs = sp_u_approx_tstart->get()->clone();
+        this->m_default_time_step->prepare_step(solTimeSeries, current_dt);
 
-        //this->m_log->o << "186"<<std::flush << std::endl;
-        this->m_default_time_step->prepare_step(solTimeSeries,current_dt);
-
-        //this->m_log->o << "189"<<std::flush << std::endl;
-        auto * ptr_Operator_A = Operator_A.get();
-
-        //this->m_log->o << "191"<<std::flush << std::endl;
+        //this->m_log->o << "debug::BraidTimeStepper::assemble_operator" << std::endl<<std::flush;
+        auto *ptr_Operator_A = Operator_A.get();
         this->m_default_time_step->assemble_jacobian(*ptr_Operator_A, *sp_u_approx_tstart->get(), gridlevel);
-
-        //this->m_log->o << "195"<<std::flush << std::endl;
+        //this->m_log->o << "debug::BraidTimeStepper::assemble_rhs" << std::endl<<std::flush;
         this->m_default_time_step->assemble_rhs(*rhs.get(), gridlevel);
 
-        //this->m_log->o << "198"<<std::flush << std::endl;
+        //this->m_log->o << "debug::BraidTimeStepper::adapt_rhs" << std::endl<<std::flush;
+        if (fstop_ != nullptr) {
+            //this->m_log->o << "residual used" << std::endl << std::flush;
+            auto fstop = *(SPGridFunction *) fstop_->value;
+            VecAdd(1.0, *rhs.get(), 1.0, *fstop.get());
+        } else {
+            this->m_log->o << "residual not used " << std::endl << std::flush;
+        }
+        //this->m_log->o << "debug::BraidTimeStepper::init_linear_solver" << std::endl<<std::flush;
         linSolver->init(Operator_A, *sp_u_approx_tstart->get());
-        //linSolver->prepare(*sp_u_approx_tstart->get());
-
-        //this->m_log->o << "202"<<std::flush << std::endl;
-        success = linSolver->apply(*sp_u_approx_tstart->get(),*rhs.get());
-
-        //this->m_log->o << "205"<<std::flush << std::endl;
-
-        //ptr_time_integrator->apply(u_end, t_end, u_start, t_start);
+        //this->m_log->o << "debug::BraidTimeStepper::apply_linear_solver" << std::endl<<std::flush;
+        success = linSolver->apply(*sp_u_approx_tstart->get(), *rhs.get());
         //StopLevelOperationTimer(LevelObserver::TL_SOLVE,l);
-
-//#if TRACE_DEFECT == 1
-//        if(this->m_verbose){
-            //this->m_log->o << std::setw(20) << "@conv Iterations: " << std::setw(12) << m_linSolver->step()
-            //                  << std::setw(20) << "Reduction: " << std::setw(12) << m_linSolver->reduction()
-            //                  << std::setw(20) << "Defect: " << std::setw(12) << m_linSolver->defect() << std::endl;
-        //}
-//#endif
+        //this->m_log->o << "debug::BraidTimeStepper::solver_finished" << std::endl<<std::flush;
 
         if (!success) {
             this->m_log->o << "!!! Failure convergence not reached" << std::endl;
             exit(127);
-        } //else {
-            //this->m_log->o << "converged " << std::flush << std::endl;
-        //}
+        } else {
+            this->m_log->o <<"converged" << std::endl;
+        }
 
-        //this->m_log->o << "output" << std::endl;
-        //*sp_u_approx_tstart = sp_u_tstop_approx;
-        //series->clear();
-//this->m_log->o << "end" << std::endl;
+
         //StopLevelOperationTimer(LevelObserver::TL_STEP,l);
+        this->m_log->o << "debug::BraidTimeStepper::Step[[end]]" << std::endl<<std::flush;
         return 0;
     };
 
-    braid_Int Residual(braid_Vector u_,braid_Vector r_,BraidStepStatus &pstatus) override {
-#if TRACE_CONST == 1
-        r->m_const = false;
-// u->m_const = false;
-#endif
-        int timegrid_level; // level;
-        pstatus.GetLevel(&timegrid_level);
-        StartLevelOperationTimer(LevelObserver::TL_RESIDUAL, timegrid_level);
+
+
+
+    /** @brief Compute the residual at time @a tstop, given the approximate
+      solutions at @a tstart and @a tstop. The values of @a tstart and @a tstop
+      can be obtained from @a pstatus.
+
+      @param[in]     u_ Input: approximate solution at time @a tstop.
+      @param[in,out] r_ Input: approximate solution at time @a tstart.
+                        Output: residual at time @a tstop.
+
+      @see braid_PtFcnResidual.
+  */
+    braid_Int Residual(braid_Vector u_, braid_Vector r_, BraidStepStatus &pstatus) override {
+        this->m_log->o << "debug::BraidTimeStepper::Residual[[args]]" << std::endl<<std::flush;
+        //this->m_log->o << "debug::BraidTimeStepper::convert_inputs" << std::endl<<std::flush;
+        auto sp_u_approx_tstop = *(SPGridFunction *) u_->value;
+        auto sp_u_approx_tstart = *(SPGridFunction *) r_->value;
+
+        //this->m_log->o << "debug::BraidTimeStepper::retrieve_variables" << std::endl<<std::flush;
+        int level; // level;
+        pstatus.GetLevel(&level);
+        // StartLevelOperationTimer(LevelObserver::TL_RESIDUAL, level);
         double t_start, t_stop;
         pstatus.GetTstartTstop(&t_start, &t_stop);
         double current_dt = t_stop - t_start;
 
         int tindex;
         pstatus.GetTIndex(&tindex);
+        int iteration;
+        pstatus.GetIter(&iteration);
 
-#if TRACE_INDEX == 1
-        /*if (this->m_verbose) {
-            this->debugwriter << "u_" << r_->index << " =  residual( u_" << u_->index << " , u_" << r_->index
+        //this->m_log->o << "debug::BraidTimeStepper::create_time_step" << std::endl<<std::flush;
+        this->m_default_time_step = make_sp(new ug::ThetaTimeStep<TAlgebra>(this->m_domain_disc));
+        this->m_default_time_step->set_theta(1.0); // implicit euler;
+        //this->m_log->o << "debug::BraidTimeStepper::create_time_series" << std::endl<<std::flush;
+        auto solTimeSeries = make_sp(new ug::VectorTimeSeries<typename TAlgebra::vector_type>());
+        solTimeSeries->push(sp_u_approx_tstart->clone(), t_start);
+        //this->m_log->o << "debug::BraidTimeStepper::prepare_step" << std::endl<<std::flush;
+        const ug::GridLevel gridlevel = sp_u_approx_tstart->grid_level();
+        this->m_default_time_step->prepare_step(solTimeSeries, current_dt);
+
+//    StartLevelOperationTimer(LevelObserver::TL_ASSEMBLE_OP,timegrid_level);
+//    StopLevelOperationTimer(LevelObserver::TL_ASSEMBLE_OP,timegrid_level);
+//    StartLevelOperationTimer(LevelObserver::TL_ASSEMBLE_RHS,timegrid_level);
+//    StopLevelOperationTimer(LevelObserver::TL_ASSEMBLE_RHS,timegrid_level);
+        //* \param[out] d 	Defect d(u) to be filled
+        //* \param[in] 	u 	Current iterate
+        //* \param[in]	gl	Grid Level
+        //this->m_log->o << "debug::BraidTimeStepper::assemble_defect" << std::endl<<std::flush;
+        this->m_default_time_step->assemble_defect(*sp_u_approx_tstart.get(),
+                                                   *sp_u_approx_tstop.cast_const().get(),
+                                                   gridlevel);
+
+        // multiply with -1.0
+        //this->m_log->o << "debug::BraidTimeStepper::invert" << std::endl<<std::flush;
+        *(sp_u_approx_tstart).get() *= -1.0;
+
+        //this->m_log->o << "debug::BraidTimeStepper::print" << std::endl<<std::flush;
+        this->m_script_log->o << "u_" << r_->index << " =  residual_"<<level<<"( u_" << u_->index << " , u_" << r_->index
                               << ", "
-                              << t_start << ", " << current_dt << ", " << t_stop << ", " << timegrid_level << ")"
+                              << t_start << "," << t_stop << ")"
                               << " % " << tindex << std::endl;
-        }*/
-#endif
-
-        auto *const_u_approx_tstop = (SPGridFunction *) u_->value;
-        auto *u_approx_tstart = (SPGridFunction *) r_->value;
 
 
-        const ug::GridLevel grid_level = const_u_approx_tstop->get()->grid_level();
 
-        // series->push(*u_approx_tstart, t_start);
-        // m_timeDisc->prepare_step(series, current_dt);
-        // auto sp_rhs = this->m_u0->clone_without_values();
-        // if (fabs(current_dt - this->m_assembled_dt) > 1e-14) {
-        //    StartLevelOperationTimer(LevelObserver::TL_ASSEMBLE_OP,timegrid_level);
-        //    m_timeDisc->assemble_linear(*m_A, *sp_rhs.get(), gridlevel);
-
-        //    m_linSolver->init(m_A, *const_u_approx_tstop->get());
-
-        //    this->m_assembled_dt = current_dt;
-        //    StopLevelOperationTimer(LevelObserver::TL_ASSEMBLE_OP,timegrid_level);
-        //} else {
-        //    StartLevelOperationTimer(LevelObserver::TL_ASSEMBLE_RHS,timegrid_level);
-        //    m_timeDisc->assemble_rhs(*sp_rhs.get(), gridlevel);
-        //    StopLevelOperationTimer(LevelObserver::TL_ASSEMBLE_RHS,timegrid_level);
-        // }
-        // m_linSolver->linear_operator()->apply_sub(
-        //        *sp_rhs.get(), // f co domain function [in / out]
-        //        *const_u_approx_tstop->get() // u domain function [in]
-        // ); // calculates r = r - A * u
-
-        // auto & levelStep = this->m_levelStep[timegrid_level];
-        // levelStep.m_stepper->assemble_defect(*sp_rhs.get(), ,grid_level);
-        // r = rhs  - L*u_stop
-        // (*sp_rhs) *= -1; // r = -r + A*u
-        // *u_approx_tstart = sp_rhs;
-        // SPGridFunction  def = sp_rhs->clone(); // todo alternative?
-        // m_timeDisc->assemble_defect(*def.get(),*const_u_approx_tstop->get(),gridlevel);
-        // VecAdd(1,*def.get(),-1,*u_approx_tstart->get());
-
-        // *u_approx_tstart = *const_u_approx_tstop;
-        // series->clear();
         // StopLevelOperationTimer(LevelObserver::TL_RESIDUAL, timegrid_level);
+        this->m_log->o << "debug::BraidTimeStepper::Residual[[end]]" << std::endl<<std::flush;
         return 0;
     }
 
-    void print_settings(){
-    }
-    void setAdaptConv(bool conv){
-    }
-    void setForceConv(bool force){
-
+    void print_settings() {
     }
 
-    void set_domain(SPDomainDisc domainDisc) {
-        this->domainDisc = domainDisc;
+    void setAdaptConv(bool conv) {
+    }
+
+    void setForceConv(bool force) {
+
     }
 
     void set_solver(SPSolver solver) {

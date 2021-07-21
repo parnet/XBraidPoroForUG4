@@ -177,15 +177,13 @@ public:
 
         {
             SPGridFunction tempobject_b = sp_u_approx_tstart->get()->clone(); // clone to ensure consistency
-            //this->vtk_ustart_before->set_filename("sp_u_tstart_before");
             this->vtk_ustart_before->write(tempobject_b,tindex,t_start,iteration,level);
         }
 
-        /*{
+        {
             SPGridFunction tempobject_b = sp_u_tstop_approx->clone(); // clone to ensure consistency
-            //this->vtkScriptor->set_filename("sp_u_tstop_before");
             this->vtk_uend_before->write(tempobject_b,tindex,t_stop,iteration,level);
-        }*/
+        }
 
         //const ug::GridLevel gridlevel = sp_u_approx_tstart->get()->grid_level();
         // todo adapt conv check?
@@ -228,15 +226,13 @@ public:
 
         {
             SPGridFunction tempobject_b = sp_u_approx_tstart->get()->clone(); // clone to ensure consistency
-            //this->vtkScriptor->set_filename("sp_u_tstart_after");
             this->vtk_ustart_after->write(tempobject_b,tindex,t_stop,iteration,level);
         }
 
-        /*{
+        {
             SPGridFunction tempobject_b = sp_u_tstop_approx->clone(); // clone to ensure consistency
-            //this->vtkScriptor->set_filename("sp_u_tstop_after");
             this->vtk_uend_after->write(tempobject_b,tindex,t_stop,iteration,level);
-        }*/
+        }
         //this->vtkScriptor->set_filename("access");
 
         StopLevelOperationTimer(LevelObserver::TL_STEP, level);

@@ -119,8 +119,22 @@ public:
 
 
         auto *sp_u_approx_tstart = (SPGridFunction *) u_->value;
+        auto *sp_u_tstop_approx = (SPGridFunction *) ustop_->value;
+        SPGridFunction csp_u_tstop_approx = sp_u_tstop_approx->get()->clone();
+
         SPGridFunction sp_rhs = this->m_u0->clone_without_values();
 
+        if(this->write_input_and_outputs) {
+            {
+                SPGridFunction tempobject_b = sp_u_approx_tstart->get()->clone(); // clone to ensure consistency
+                this->vtk_ustart_before->write(tempobject_b, tindex, t_start, iteration, level);
+            }
+
+            {
+                SPGridFunction tempobject_b = sp_u_tstop_approx->get()->clone(); // clone to ensure consistency
+                this->vtk_uend_before->write(tempobject_b, tindex, t_stop, iteration, level);
+            }
+        }
         //SPGridFunction sp_u_tstop_approx = constsp_u_approx_tstop->get()->clone();
         //SPGridFunction lp = constsp_u_approx_tstop->get()->clone();
 
@@ -136,10 +150,10 @@ public:
         const ug::GridLevel gridlevel = sp_u_approx_tstart->get()->grid_level();
         auto Operator_A = make_sp(new ug::AssembledLinearOperator<TAlgebra>(this->m_default_time_step, gridlevel));
         auto *ptr_Operator_A = Operator_A.get();
-        this->m_default_time_step->assemble_jacobian(*ptr_Operator_A, *sp_u_approx_tstart->get(), gridlevel);
+        this->m_default_time_step->assemble_linear(*ptr_Operator_A, *sp_rhs.get(), gridlevel);
 
-
-        this->m_default_time_step->assemble_rhs(*sp_rhs.get(), gridlevel);
+        //this->m_default_time_step->assemble_jacobian(*ptr_Operator_A, *sp_u_approx_tstart->get(), gridlevel);
+        //this->m_default_time_step->assemble_rhs(*sp_rhs.get(), gridlevel);
 
         if (fstop_ != nullptr) { // apply correction for rhs
             auto fstop = *(SPGridFunction *) fstop_->value;
@@ -147,14 +161,28 @@ public:
         }
 
         linSolver->init(Operator_A, *sp_u_approx_tstart->get());
-        success = linSolver->apply(*sp_u_approx_tstart->get(), *sp_rhs.get());
+        //success = linSolver->apply(*sp_u_approx_tstart->get(), *sp_rhs.get());
+        success = linSolver->apply(*csp_u_tstop_approx.get(), *sp_rhs.get());
 
         if (!success) {
             this->m_log->o << "!!! Failure convergence not reached" << std::endl;
             exit(127);
         }
 
+        *sp_u_approx_tstart = csp_u_tstop_approx;
 
+
+        if(this->write_input_and_outputs) {
+            {
+                SPGridFunction tempobject_b = sp_u_approx_tstart->get()->clone(); // clone to ensure consistency
+                this->vtk_ustart_after->write(tempobject_b, tindex, t_start, iteration, level);
+            }
+
+            {
+                SPGridFunction tempobject_b = sp_u_tstop_approx->get()->clone(); // clone to ensure consistency
+                this->vtk_uend_after->write(tempobject_b, tindex, t_stop, iteration, level);
+            }
+        }
         //StopLevelOperationTimer(LevelObserver::TL_STEP,l);
         return 0;
     };
@@ -173,8 +201,7 @@ public:
       @see braid_PtFcnResidual.
   */
     braid_Int Residual(braid_Vector u_, braid_Vector r_, BraidStepStatus &pstatus) override {
-
-
+        //this->m_log->o << "debug::BraidTimeStepper::Residual[[args]]" << std::endl<<std::flush;
         int level;
         int tindex;
         int iteration;
@@ -194,35 +221,37 @@ public:
                               << " % " << tindex << std::endl;
 
 
-        auto *const_u_approx_tstop = (SPGridFunction *) u_->value;
-        auto *u_approx_tstart = (SPGridFunction *) r_->value;
+        auto *u_tstop = (SPGridFunction *) u_->value;
+        auto *u_tstart = (SPGridFunction *) r_->value;
 
-        const ug::GridLevel gridlevel = const_u_approx_tstop->get()->grid_level();
+        if(this->write_input_and_outputs) {
+            {
+                SPGridFunction tempobject_b = u_tstop->get()->clone(); // clone to ensure consistency
+                this->vtk_resu_before->write(tempobject_b, tindex, t_start, iteration, level);
+            }
 
-        auto solTimeSeries = make_sp(new ug::VectorTimeSeries<typename TAlgebra::vector_type>());
-        solTimeSeries->push(*u_approx_tstart, t_start);
+            {
+                SPGridFunction tempobject_b = u_tstart->get()->clone(); // clone to ensure consistency
+                this->vtk_resr_before->write(tempobject_b, tindex, t_stop, iteration, level);
+            }
+        }
 
-        this->m_default_time_step = make_sp(new ug::ThetaTimeStep<TAlgebra>(this->m_domain_disc));
-        this->m_default_time_step->set_theta(1.0); // implicit euler;
-        this->m_default_time_step->prepare_step(solTimeSeries, current_dt);
 
-        auto sp_rhs = this->m_u0->clone_without_values();
-        auto Operator_A = make_sp(new ug::AssembledLinearOperator<TAlgebra>(this->m_default_time_step, gridlevel));
-        auto *ptr_Operator_A = Operator_A.get();
+        auto result = calcDefectStepper(u_tstop->get()->clone(), t_stop, u_tstart->get()->clone(), t_start);
+        * u_tstart->get()  = *result.get();
 
-        this->m_default_time_step->assemble_linear(*ptr_Operator_A, *sp_rhs.get(), gridlevel);
-        this->linSolver->init(Operator_A, *const_u_approx_tstop->get());
+        if(this->write_input_and_outputs) {
+            {
+                SPGridFunction tempobject_b = u_tstop->get()->clone(); // clone to ensure consistency
+                this->vtk_resu_after->write(tempobject_b, tindex, t_stop, iteration, level);
+            }
 
-        //this->m_default_time_step->assemble_rhs(*sp_rhs.get(), gridlevel);
-
-        Operator_A->apply_sub(
-                *sp_rhs.get(), // f co domain function [in / out]
-                *const_u_approx_tstop->get() // u domain function [in]
-        );
-
-        (*sp_rhs) *= -1;
-        *u_approx_tstart = sp_rhs;
-        /*this->m_log->o << "debug::BraidTimeStepper::Residual[[args]]" << std::endl<<std::flush;
+            {
+                SPGridFunction tempobject_b = u_tstart->get()->clone(); // clone to ensure consistency
+                this->vtk_resr_after->write(tempobject_b, tindex, t_stop, iteration, level);
+            }
+        }
+        /*
         //this->m_log->o << "debug::BraidTimeStepper::convert_inputs" << std::endl<<std::flush;
         auto u_tstop = *(SPGridFunction *) u_->value;
         auto u_tstart = *(SPGridFunction *) r_->value;
@@ -241,30 +270,6 @@ public:
         pstatus.GetIter(&iteration);
 
 
-        this->m_default_time_step = make_sp(new ug::ThetaTimeStep<TAlgebra>(this->m_domain_disc));
-        this->m_default_time_step->set_theta(1.0); // implicit euler;
-        auto solTimeSeries = make_sp(new ug::VectorTimeSeries<typename TAlgebra::vector_type>());
-
-        solTimeSeries->push(u_tstart->clone(), t_start);
-        solTimeSeries->push(u_tstop->clone(), t_stop);
-        const ug::GridLevel gridlevel = u_tstart->grid_level();
-        this->m_default_time_step->prepare_step(solTimeSeries, current_dt);
-
-        auto Operator_A = make_sp(new ug::AssembledLinearOperator<TAlgebra>(this->m_default_time_step, gridlevel));
-        auto *ptr_Operator_A = Operator_A.get();
-        this->m_default_time_step->assemble_jacobian(*ptr_Operator_A, *u_tstop.get(), gridlevel);
-
-        //* \param[out] d 	Defect d(u) to be filled
-        //* \param[in] 	u 	Current iterate
-        //* \param[in]	gl	Grid Level
-        //this->m_log->o << "debug::BraidTimeStepper::assemble_defect" << std::endl<<std::flush;
-        this->m_default_time_step->assemble_defect(*u_tstart.get(),
-                                                   *u_tstop.cast_const().get(),
-                                                   gridlevel);
-
-        // multiply with -1.0
-        //this->m_log->o << "debug::BraidTimeStepper::invert" << std::endl<<std::flush;
-        *(u_tstart).get() *= -1.0;
 
         //this->m_log->o << "debug::BraidTimeStepper::print" << std::endl<<std::flush;
         this->m_script_log->o << "u_" << r_->index << " =  residual_"<<level<<"( u_" << u_->index << "," << t_stop
@@ -276,6 +281,66 @@ public:
         // StopLevelOperationTimer(LevelObserver::TL_RESIDUAL, timegrid_level);
         this->m_log->o << "debug::BraidTimeStepper::Residual[[end]]" << std::endl<<std::flush;*/
         return 0;
+    }
+
+    SPGridFunction calcDefectBasic(SPGridFunction u_tstop, double t_stop, SPGridFunction u_tstart, double t_start){
+
+        double dt = t_stop - t_start;
+        const ug::GridLevel gridlevel = u_tstart->grid_level();
+
+        auto solTimeSeries = make_sp(new ug::VectorTimeSeries<typename TAlgebra::vector_type>());
+        solTimeSeries->push(u_tstart, t_start);
+
+        this->m_default_time_step = make_sp(new ug::ThetaTimeStep<TAlgebra>(this->m_domain_disc));
+        this->m_default_time_step->set_theta(1.0); // implicit euler;
+        this->m_default_time_step->prepare_step(solTimeSeries, dt);
+
+        auto sp_rhs = this->m_u0->clone_without_values();
+        auto Operator_A = make_sp(new ug::AssembledLinearOperator<TAlgebra>(this->m_default_time_step, gridlevel));
+        auto *ptr_Operator_A = Operator_A.get();
+
+        this->m_default_time_step->assemble_linear(*ptr_Operator_A, *sp_rhs.get(), gridlevel);
+        this->linSolver->init(Operator_A, *u_tstart);
+
+        //this->m_default_time_step->assemble_rhs(*sp_rhs.get(), gridlevel);
+
+        Operator_A->apply_sub(
+                *sp_rhs.get(), // f co domain function [in / out]
+                *u_tstop.get() // u domain function [in]
+        ); // calculates r = r - A * u
+
+        (*sp_rhs) *= -1;
+        return sp_rhs;
+    }
+
+    SPGridFunction calcDefectStepper(SPGridFunction u_tstop, double t_stop, SPGridFunction u_tstart, double t_start){
+        double dt = t_stop - t_start;
+        this->m_default_time_step = make_sp(new ug::ThetaTimeStep<TAlgebra>(this->m_domain_disc));
+        this->m_default_time_step->set_theta(1.0); // implicit euler;
+        auto solTimeSeries = make_sp(new ug::VectorTimeSeries<typename TAlgebra::vector_type>());
+
+        solTimeSeries->push(u_tstart->clone(), t_start);
+        //solTimeSeries->push(u_tstop->clone(), t_stop);
+        const ug::GridLevel gridlevel = u_tstart->grid_level();
+        this->m_default_time_step->prepare_step(solTimeSeries, dt);
+
+        SPGridFunction sp_rhs = this->m_u0->clone_without_values();
+        auto Operator_A = make_sp(new ug::AssembledLinearOperator<TAlgebra>(this->m_default_time_step, gridlevel));
+        auto *ptr_Operator_A = Operator_A.get();
+        this->m_default_time_step->assemble_linear(*ptr_Operator_A, *sp_rhs.get(), gridlevel);
+
+        //* \param[out] d 	Defect d(u) to be filled
+        //* \param[in] 	u 	Current iterate
+        //* \param[in]	gl	Grid Level
+        //this->m_log->o << "debug::BraidTimeStepper::assemble_defect" << std::endl<<std::flush;
+        this->m_default_time_step->assemble_defect(*sp_rhs.get(),
+                                                   *u_tstop.cast_const().get(),
+                                                   gridlevel);
+
+        // multiply with -1.0
+        //this->m_log->o << "debug::BraidTimeStepper::invert" << std::endl<<std::flush;
+        *(sp_rhs) *= -1.0;
+        return sp_rhs;
     }
 
     void print_settings() {

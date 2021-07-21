@@ -67,12 +67,26 @@ public: // todo set better modes
 
     typedef BraidSpatialNorm<TDomain,TAlgebra> TSpatialNorm;
     typedef SmartPtr<TSpatialNorm> SPSpatialNorm;
+
     SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtk_scriptor;
+
     SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtk_ustart_before;
     SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtk_ustart_after;
     SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtk_uend_after;
     SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtk_uend_before;
-    SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtk_residual;
+
+    SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtk_resu_before;
+    SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtk_resu_after;
+    SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtk_resr_before;
+    SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtk_resr_after;
+
+    bool write_input_and_outputs = false;
+
+
+
+
+
+    SmartPtr<VTKScriptor<TDomain,TAlgebra>> vtk_norm;
 /* ---------------------------------------------------------------------------------------------------------------------
  * Member Variables
  -------------------------------------------------------------------------------------------------------------------- */
@@ -96,10 +110,28 @@ public: // todo set better modes
         this->vtk_uend_after = sp_scriptor;
     }
 
-    void set_vtk_residual(SmartPtr<VTKScriptor<TDomain,TAlgebra>> sp_scriptor){
-        std::cout << "scriptor set" << std::endl;
-        this->vtk_residual =  sp_scriptor;
+
+
+    void set_vtk_resu_before(SmartPtr<VTKScriptor<TDomain,TAlgebra>> sp_scriptor){
+        this->vtk_resu_before = sp_scriptor;
     }
+
+    void set_vtk_resu_after(SmartPtr<VTKScriptor<TDomain,TAlgebra>> sp_scriptor){
+        this->vtk_resu_after = sp_scriptor;
+    }
+
+    void set_vtk_resr_before(SmartPtr<VTKScriptor<TDomain,TAlgebra>> sp_scriptor){
+        this->vtk_resr_before = sp_scriptor;
+    }
+
+    void set_vtk_resr_after(SmartPtr<VTKScriptor<TDomain,TAlgebra>> sp_scriptor){
+        this->vtk_resr_after = sp_scriptor;
+    }
+
+    void set_vtk_norm(SmartPtr<VTKScriptor<TDomain,TAlgebra>> sp_scriptor){
+        this->vtk_norm =  sp_scriptor;
+    }
+
 
     SPParalog m_log;
     SPParalog m_script_log;
@@ -272,7 +304,7 @@ public: // todo set better modes
 
         {
             SPGridFunction tempobject_n = uref->get()->clone();
-            vtk_residual->write(tempobject_n,0,0,0,0);
+            vtk_norm->write(tempobject_n, 0, 0, 0, 0);
         }
 
         this->m_script_log->o  << "norm( u_" << u_->index << ") % value ="  << *norm_ptr << std::endl;
